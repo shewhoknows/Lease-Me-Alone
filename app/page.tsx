@@ -129,12 +129,128 @@ function getHarmony(layout: Layout) {
   };
 }
 
-const SIMULATION = [
-  { phase: "7:02 am", copy: "Tara unrolls her yoga mat. Dev begins a suspiciously ambitious breakfast.", actor: "tara" as PersonId },
-  { phase: "8:14 am", copy: "Chairman Meow begins his daily inspection of soft furnishings.", actor: "kabir" as PersonId },
-  { phase: "2:36 pm", copy: "Dev offers everybody lunch. It has somehow used seven pans.", actor: "dev" as PersonId },
-  { phase: "11:48 pm", copy: "Kabir remembers a chord. Tara remembers every decision that led here.", actor: "kabir" as PersonId },
-];
+type Scene = {
+  phase: string;
+  chapter: "morning" | "afternoon" | "evening";
+  copy: string;
+  actor: PersonId;
+  tone: "good" | "bad" | "neutral";
+  reaction: string;
+};
+
+function buildSimulation(layout: Layout): Scene[] {
+  const taraRoom = layout.people.tara;
+  const devRoom = layout.people.dev;
+  const kabirRoom = layout.people.kabir;
+  const catBed = layout.objects.catbed;
+  const records = layout.objects.record;
+
+  return [
+    taraRoom === "a"
+      ? {
+          phase: "7:02 am",
+          chapter: "morning",
+          copy: "Tara unrolls her mat inside a perfect rectangle of sunrise. No furniture is kicked.",
+          actor: "tara",
+          tone: "good",
+          reaction: "a suspiciously peaceful start",
+        }
+      : {
+          phase: "7:02 am",
+          chapter: "morning",
+          copy: "Tara attempts a sun salutation between the bed and the wardrobe. The wardrobe wins.",
+          actor: "tara",
+          tone: "bad",
+          reaction: "thud",
+        },
+    catBed === kabirRoom
+      ? {
+          phase: "8:14 am",
+          chapter: "morning",
+          copy: "Chairman Meow finds his bed beside Kabir, performs three circles and clocks in for a nap.",
+          actor: "kabir",
+          tone: "good",
+          reaction: "purr purr purr",
+        }
+      : catBed === taraRoom || (catBed === "a" && taraRoom === "a")
+        ? {
+            phase: "8:14 am",
+            chapter: "morning",
+            copy: "Chairman Meow follows his bed directly into Tara’s room. Tara follows him directly back out.",
+            actor: "tara",
+            tone: "bad",
+            reaction: "A-CHOO",
+          }
+        : {
+            phase: "8:14 am",
+            chapter: "morning",
+            copy: "Chairman Meow ignores the expensive cat bed and occupies the clean laundry instead.",
+            actor: "kabir",
+            tone: "neutral",
+            reaction: "as foretold",
+          },
+    devRoom === "b"
+      ? {
+          phase: "2:36 pm",
+          chapter: "afternoon",
+          copy: "Dev reaches the kitchen before his onions can burn. Lunch is ready. It has used seven pans.",
+          actor: "dev",
+          tone: "good",
+          reaction: "who wants seconds?",
+        }
+      : devRoom === "c"
+        ? {
+            phase: "2:36 pm",
+            chapter: "afternoon",
+            copy: "Dev sprints the full length of the flat for one forgotten chilli. Something in the pan becomes geology.",
+            actor: "dev",
+            tone: "bad",
+            reaction: "SMOKE ALARM",
+          }
+        : {
+            phase: "2:36 pm",
+            chapter: "afternoon",
+            copy: "Dev serves an ambitious lunch from a roomier-than-necessary tray. Nobody objects.",
+            actor: "dev",
+            tone: "neutral",
+            reaction: "only four pans",
+          },
+    records === "living"
+      ? {
+          phase: "8:41 pm",
+          chapter: "evening",
+          copy: "Kabir puts a record on in the living room. Dev calls it atmosphere. Tara calls it acceptable volume.",
+          actor: "kabir",
+          tone: "good",
+          reaction: "side B, quietly",
+        }
+      : {
+          phase: "8:41 pm",
+          chapter: "evening",
+          copy: "Kabir’s record player remains in a bedroom. The bass discovers that walls are largely theoretical.",
+          actor: "kabir",
+          tone: "bad",
+          reaction: "muffled thump thump",
+        },
+    isAdjacent(kabirRoom, taraRoom)
+      ? {
+          phase: "11:48 pm",
+          chapter: "evening",
+          copy: "Kabir remembers a chord. Tara’s eyes open next door. She knocks once. Then with intent.",
+          actor: "kabir",
+          tone: "bad",
+          reaction: "BANG BANG BANG",
+        }
+      : {
+          phase: "11:48 pm",
+          chapter: "evening",
+          copy: "Kabir remembers a chord from safely across the flat. Tara sleeps through all four songs.",
+          actor: "kabir",
+          tone: "good",
+          reaction: "domestic miracle",
+        },
+  ];
+}
 
 export default function Home() {
   const [layout, setLayout] = useState<Layout>(INITIAL_LAYOUT);
@@ -143,11 +259,13 @@ export default function Home() {
   const [hint, setHint] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ item: Picked; x: number; y: number; moved: boolean } | null>(null);
   const [simulation, setSimulation] = useState<{ step: number; done: boolean } | null>(null);
+  const [groupChat, setGroupChat] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const dragStart = useRef<{ x: number; y: number } | null>(null);
 
   const placedCount = Object.values(layout.people).filter(Boolean).length;
   const harmony = useMemo(() => getHarmony(layout), [layout]);
+  const scenes = useMemo(() => buildSimulation(layout), [layout]);
   const selectedPerson = picked?.type === "person" ? picked.id : null;
 
   const makeSound = useCallback(
@@ -247,12 +365,12 @@ export default function Home() {
     const timer = window.setTimeout(() => {
       setSimulation((current) => {
         if (!current) return null;
-        if (current.step >= SIMULATION.length - 1) return { ...current, done: true };
+        if (current.step >= scenes.length - 1) return { ...current, done: true };
         return { step: current.step + 1, done: false };
       });
-    }, 2600);
+    }, 2450);
     return () => window.clearTimeout(timer);
-  }, [simulation]);
+  }, [scenes.length, simulation]);
 
   const undo = () => {
     const previous = history.at(-1);
@@ -269,11 +387,12 @@ export default function Home() {
     }
     setHint(null);
     setPicked(null);
+    setGroupChat(false);
     setSimulation({ step: 0, done: false });
     makeSound("button");
   };
 
-  const activeSimulation = simulation ? SIMULATION[simulation.step] : null;
+  const activeSimulation = simulation ? scenes[simulation.step] : null;
   const actorRoom = activeSimulation ? layout.people[activeSimulation.actor] : null;
 
   const objectToken = (id: ObjectId) => {
@@ -282,7 +401,11 @@ export default function Home() {
       <button
         type="button"
         className={`object-token ${active ? "is-picked" : ""}`}
-        onPointerDown={(event) => beginPick(event, { type: "object", id })}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          beginPick(event, { type: "object", id });
+        }}
+        onClick={(event) => event.stopPropagation()}
         aria-label={`Pick up ${id === "catbed" ? "Chairman Meow's cat bed" : "record player"}`}
       >
         <span>{id === "catbed" ? "🐈" : "♫"}</span>
@@ -440,9 +563,17 @@ export default function Home() {
               </div>
 
               {simulation && activeSimulation && (
-                <div className={`life-layer life-layer--step-${simulation.step}`} aria-live="polite">
+                <div className={`life-layer life-layer--step-${simulation.step} life-layer--${activeSimulation.tone}`} aria-live="polite">
+                  <div className="day-progress" aria-hidden="true">
+                    <span className={activeSimulation.chapter === "morning" ? "is-now" : ""}>☼ <i>morning</i></span>
+                    <b />
+                    <span className={activeSimulation.chapter === "afternoon" ? "is-now" : ""}>◐ <i>afternoon</i></span>
+                    <b />
+                    <span className={activeSimulation.chapter === "evening" ? "is-now" : ""}>☾ <i>evening</i></span>
+                  </div>
                   <div className={`life-person life-person--${activeSimulation.actor} life-person--room-${actorRoom ?? "hall"}`}>
                     <Portrait person={activeSimulation.actor} small />
+                    <span className="life-reaction">{activeSimulation.reaction}</span>
                   </div>
                   <div className="life-cat">🐈</div>
                   <div className="life-caption">
@@ -461,7 +592,7 @@ export default function Home() {
               </div>
             )}
 
-            {simulation?.done && (
+            {simulation?.done && !groupChat && (
               <div className="result-card" role="dialog" aria-modal="true" aria-labelledby="result-title">
                 <span className="result-card__eyebrow">THE HOUSE HAS SPOKEN</span>
                 <div className="result-card__house" aria-hidden="true">⌂</div>
@@ -478,8 +609,41 @@ export default function Home() {
                     <span key={id}><Portrait person={id} small /><b>{satisfaction(layout, id).face}</b></span>
                   ))}
                 </div>
-                <button className="primary-button" type="button" onClick={() => setSimulation(null)}>
-                  Rearrange the flat
+                <div className="result-actions">
+                  <button className="primary-button" type="button" onClick={() => setGroupChat(true)}>
+                    Open Flat 4B chat
+                  </button>
+                  <button className="secondary-button" type="button" onClick={() => setSimulation(null)}>
+                    Rearrange
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {simulation?.done && groupChat && (
+              <div className="group-chat" role="dialog" aria-modal="true" aria-labelledby="chat-title">
+                <div className="group-chat__top">
+                  <button type="button" onClick={() => setGroupChat(false)} aria-label="Back to results">←</button>
+                  <div><small>HOUSEHOLD GROUP CHAT</small><h2 id="chat-title">FLAT 4B</h2></div>
+                  <span>3 flatmates · 1 cat</span>
+                </div>
+                <div className="chat-stream">
+                  <div className="chat-line chat-line--dev"><b>DEV</b><p>who ate my leftovers</p></div>
+                  <div className="chat-line chat-line--kabir"><b>KABIR</b><p>not me</p></div>
+                  <div className="chat-line chat-line--tara"><b>TARA</b><p>Kabir</p></div>
+                  <div className="chat-line chat-line--kabir"><b>KABIR</b><p>okay but define “ate”</p></div>
+                  <div className="chat-line chat-line--cat"><b>CHAIRMAN MEOW</b><p>🐾</p></div>
+                  <div className="chat-divider">later that evening</div>
+                  <div className="chat-line chat-line--tara">
+                    <b>TARA</b>
+                    <p>{harmony.score === 100 ? "fine. the room arrangement works." : harmony.score >= 80 ? "this is… less bad than expected." : "we need to discuss the bedroom situation."}</p>
+                  </div>
+                  <div className="chat-line chat-line--dev"><b>DEV</b><p>{harmony.score === 100 ? "HOUSE DINNER 🎉" : "house meeting? i’ll make snacks"}</p></div>
+                  <div className="chat-line chat-line--kabir"><b>KABIR</b><p>Chairman has voted yes</p></div>
+                </div>
+                <div className="chat-compose"><span>Message Flat 4B…</span><b>↑</b></div>
+                <button className="chat-done" type="button" onClick={() => { setGroupChat(false); setSimulation(null); }}>
+                  Back to the apartment
                 </button>
               </div>
             )}
@@ -529,6 +693,13 @@ export default function Home() {
               <blockquote>“{PEOPLE[selectedPerson].quote}”</blockquote>
               <div className="tells">
                 {PEOPLE[selectedPerson].tells.map((tell, index) => <span key={tell}><b>{["◷", "⌂", "✦"][index]}</b>{tell}</span>)}
+              </div>
+              <div className="relationship-note">
+                <span>{selectedPerson === "dev" ? "👯" : selectedPerson === "tara" ? "😤" : "😬"}</span>
+                <p>
+                  <small>KNOWN RELATIONSHIP</small>
+                  {selectedPerson === "dev" ? "Considers everyone a close friend" : selectedPerson === "tara" ? "Kabir: musically incompatible" : "Tara: terrifying before coffee"}
+                </p>
               </div>
               <div className="needs">
                 <h3>{layout.people[selectedPerson] ? "How it’s going" : "What they need"}</h3>
