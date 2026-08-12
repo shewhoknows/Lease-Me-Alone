@@ -57,3 +57,29 @@ test("keeps finished product metadata and removes starter preview code", async (
   await access(new URL("../public/og.png", import.meta.url));
   await assert.rejects(access(new URL("../app/_sites-preview", templateRoot)));
 });
+
+test("packages every level apartment and the preloaded Move In art", async () => {
+  const artFiles = [
+    "lease-me-alone-topdown-2.png",
+    "lease-me-alone-topdown-3.png",
+    "levels/level-03-room-to-work.png",
+    "levels/level-04-balcony-rights.png",
+    "levels/level-05-good-enough.png",
+    "levels/level-06-housewarming.png",
+    "lease-me-alone-cutaway.avif",
+  ];
+
+  for (const artFile of artFiles) {
+    await access(new URL(`../public/art/${artFile}`, import.meta.url));
+    await access(new URL(`../dist/client/art/${artFile}`, import.meta.url));
+  }
+
+  const layout = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8");
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /"early-bird": "\/art\/lease-me-alone-topdown-3\.png"/);
+  assert.match(layout, /rel="preload"[\s\S]*lease-me-alone-cutaway\.avif/);
+  assert.match(page, /SIMULATION_HOUSE_ART/);
+  assert.match(page, /simulationAssetsReady\.current = Promise\.all/);
+  assert.match(page, /await simulationAssetsReady\.current/);
+  assert.match(page, /\.decode\?\.\(\)/);
+});

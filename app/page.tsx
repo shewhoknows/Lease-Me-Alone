@@ -21,7 +21,7 @@ import {
 const FEATURE_LABELS: Record<RoomFeature, { icon: string; label: string }> = {
   daylight: { icon: "☀", label: "Daylight" },
   morningSun: { icon: "☼", label: "Morning sun" },
-  quiet: { icon: "◇", label: "Quiet" },
+  quiet: { icon: "◇", label: "Low noise" },
   size: { icon: "↔", label: "Size" },
   kitchenClose: { icon: "◒", label: "Near kitchen" },
   desk: { icon: "▤", label: "Desk" },
@@ -63,12 +63,36 @@ const DEFAULT_DEBUG: DebugFlags = {
 
 const HOUSE_ART_BY_LEVEL: Record<string, string> = {
   "first-night": "/art/lease-me-alone-topdown-2.png",
-  "needs-vs-wants": "/art/lease-me-alone-topdown-3.png",
+  "early-bird": "/art/lease-me-alone-topdown-3.png",
   "room-to-work": "/art/levels/level-03-room-to-work.png",
   "balcony-rights": "/art/levels/level-04-balcony-rights.png",
   "good-enough": "/art/levels/level-05-good-enough.png",
   housewarming: "/art/levels/level-06-housewarming.png",
 };
+
+const SIMULATION_HOUSE_ART = "/art/lease-me-alone-cutaway.avif";
+const SIMULATION_PORTRAIT_ART = Object.keys(CHARACTERS).map((characterId) => `/art/characters/${characterId}.png`);
+
+function preloadImage(src: string) {
+  return new Promise<void>((resolve) => {
+    const image = new window.Image();
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      resolve();
+    };
+    const finishAfterDecode = () => {
+      const decode = image.decode?.();
+      if (decode) void decode.catch(() => undefined).finally(finish);
+      else finish();
+    };
+    image.addEventListener("load", finishAfterDecode, { once: true });
+    image.addEventListener("error", finish, { once: true });
+    image.src = src;
+    if (image.complete) finishAfterDecode();
+  });
+}
 
 function CharacterPortrait({ characterId, small = false }: { characterId: CharacterId; small?: boolean }) {
   return (
@@ -91,6 +115,7 @@ function preferenceOrder(preference: Preference) {
 function roomFeatureText(feature: RoomFeature, value: Room["features"][RoomFeature]) {
   const base = FEATURE_LABELS[feature];
   if (value === true) return base.label;
+  if (feature === "quiet" && value === false) return "House noise carries";
   if (value === false) return `No ${base.label.toLowerCase()}`;
   if (feature === "daylight") return `${String(value)} daylight`;
   if (feature === "size") return `${String(value)} room`;
@@ -98,6 +123,7 @@ function roomFeatureText(feature: RoomFeature, value: Room["features"][RoomFeatu
 }
 
 function isFeatureShown(feature: RoomFeature, value: Room["features"][RoomFeature]) {
+  if (feature === "quiet") return value !== undefined;
   return value !== false && value !== undefined;
 }
 
@@ -206,6 +232,7 @@ export default function Home() {
   const [hintIndex, setHintIndex] = useState(-1);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [simulation, setSimulation] = useState<SimulationState | null>(null);
+  const [simulationPending, setSimulationPending] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [completed, setCompleted] = useState<Record<number, number>>({});
@@ -213,6 +240,7 @@ export default function Home() {
   const [debugFlags, setDebugFlags] = useState<DebugFlags>(DEFAULT_DEBUG);
   const dragStart = useRef<{ x: number; y: number } | null>(null);
   const titlePressTimer = useRef<number | null>(null);
+  const simulationAssetsReady = useRef<Promise<void> | null>(null);
 
   const placedCount = level.characterIds.filter((id) => Boolean(assignment[id])).length;
   const allPlaced = placedCount === level.characterIds.length;
@@ -237,6 +265,12 @@ export default function Home() {
       }
     }, 0);
     return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    simulationAssetsReady.current = Promise.all(
+      [SIMULATION_HOUSE_ART, ...SIMULATION_PORTRAIT_ART].map(preloadImage),
+    ).then(() => undefined);
   }, []);
 
   const makeSound = useCallback(
@@ -337,18 +371,21 @@ export default function Home() {
     };
   }, [drag, placeCharacter]);
 
-  const beginSimulation = useCallback((candidate: Assignment = assignment) => {
+  const beginSimulation = useCallback(async (candidate: Assignment = assignment) => {
     const result = evaluateAssignment(level, candidate);
-    if (!result.complete) return;
+    if (!result.complete || simulationPending) return;
     const events = !result.hardValid
       ? buildFailureEvents(level, result)
       : buildNearMissEvents(level, candidate, result);
+    setSimulationPending(true);
+    await simulationAssetsReady.current;
     setAssignment(candidate);
     setSelectedRoomId(null);
     setHintIndex(-1);
     setSimulation({ step: 0, events, result, finished: false });
+    setSimulationPending(false);
     makeSound("move");
-  }, [assignment, level, makeSound]);
+  }, [assignment, level, makeSound, simulationPending]);
 
   useEffect(() => {
     if (!simulation || simulation.finished) return;
@@ -370,6 +407,7 @@ export default function Home() {
     setSelectedRoomId(null);
     setHintIndex(-1);
     setSimulation(null);
+    setSimulationPending(false);
   }, [level]);
 
   const undo = () => {
@@ -502,7 +540,7 @@ export default function Home() {
                 <div className={`simulation-layer simulation-layer--${currentEvent.tone ?? "warm"}`} aria-live="polite">
                   <div className="simulation-scene">
                     <div className="simulation-artboard">
-                      <Image className="simulation-house-art" src="/art/lease-me-alone-cutaway.png" alt="" fill sizes="(max-width: 940px) 720px, 70vw" />
+                      <Image className="simulation-house-art" src={SIMULATION_HOUSE_ART} alt="" fill sizes="(max-width: 940px) 720px, 70vw" priority unoptimized />
                       <div className="simulation-residents" aria-hidden="true">
                         {level.characterIds.map((characterId) => {
                           const roomId = assignment[characterId];
@@ -541,9 +579,9 @@ export default function Home() {
               <button type="button" onClick={reset} disabled={Boolean(simulation)}>Reset</button>
             </div>
             <p>{selectedCharacter ? `${CHARACTERS[selectedCharacter].name} is ready. Select a room.` : "Select a roommate."}</p>
-            <button className="move-in-button" type="button" disabled={!allPlaced || Boolean(simulation)} onClick={() => beginSimulation()}>
-              <span>{allPlaced ? "Open the house" : `${level.characterIds.length - placedCount} still need a room`}</span>
-              <strong>MOVE IN</strong><i>→</i>
+            <button className="move-in-button" type="button" disabled={!allPlaced || Boolean(simulation) || simulationPending} onClick={() => void beginSimulation()}>
+              <span>{simulationPending ? "Preparing the house" : allPlaced ? "Open the house" : `${level.characterIds.length - placedCount} still need a room`}</span>
+              <strong>{simulationPending ? "OPENING…" : "MOVE IN"}</strong><i>→</i>
             </button>
           </div>
 
@@ -686,8 +724,8 @@ export default function Home() {
             ] as [keyof DebugFlags, string][]).map(([key, label]) => <button type="button" key={key} className={debugFlags[key] ? "is-on" : ""} onClick={() => setDebugFlags((current) => ({ ...current, [key]: !current[key] }))}>{label}</button>)}
             <button type="button" onClick={() => setAssignment(makeAssignment(level, level.intendedAssignment))}>AUTO-SOLVE</button>
             <button type="button" onClick={reset}>RESET LEVEL</button>
-            <button type="button" onClick={() => beginSimulation(makeAssignment(level, level.intendedAssignment))}>PLAY SUCCESS SIMULATION</button>
-            <button type="button" onClick={() => beginSimulation(findInvalidAssignment(level))}>PLAY FAILURE SIMULATION</button>
+            <button type="button" onClick={() => void beginSimulation(makeAssignment(level, level.intendedAssignment))}>PLAY SUCCESS SIMULATION</button>
+            <button type="button" onClick={() => void beginSimulation(findInvalidAssignment(level))}>PLAY FAILURE SIMULATION</button>
           </div>
           {debugFlags.solutions && <div className="debug-solutions">{solverReport.solutions.map((solution, index) => <p key={index}><b>{solution.result.harmony}%</b>{level.characterIds.map((id) => `${CHARACTERS[id].name} → ${level.house.rooms.find((room) => room.id === solution.assignment[id])?.name}`).join(" · ")}</p>)}</div>}
         </aside>

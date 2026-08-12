@@ -34,7 +34,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${geist.variable} ${patrickHand.variable}`}>{children}</body>
+      <body className={`${geist.variable} ${patrickHand.variable}`}>
+        <link rel="preload" as="image" href="/art/lease-me-alone-cutaway.avif" fetchPriority="high" />
+        {children}
+      </body>
     </html>
   );
 }
