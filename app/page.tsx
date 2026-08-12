@@ -188,11 +188,15 @@ function findInvalidAssignment(level: GameLevel): Assignment {
 }
 
 export default function Home() {
-  const [levelIndex, setLevelIndex] = useState(0);
+  const [levelIndex, setLevelIndex] = useState(() => {
+    if (process.env.NODE_ENV === "production" || typeof window === "undefined") return 0;
+    const requestedLevel = Number(new URLSearchParams(window.location.search).get("level"));
+    return Number.isInteger(requestedLevel) && requestedLevel >= 1 && requestedLevel <= GAME_LEVELS.length ? requestedLevel - 1 : 0;
+  });
   const level = GAME_LEVELS[levelIndex];
-  const [assignment, setAssignment] = useState<Assignment>(() => emptyAssignment(GAME_LEVELS[0]));
+  const [assignment, setAssignment] = useState<Assignment>(() => emptyAssignment(GAME_LEVELS[levelIndex]));
   const [history, setHistory] = useState<Assignment[]>([]);
-  const [selectedCharacter, setSelectedCharacter] = useState<CharacterId>(level.characterIds[0]);
+  const [selectedCharacter, setSelectedCharacter] = useState<CharacterId>(GAME_LEVELS[levelIndex].characterIds[0]);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [hintIndex, setHintIndex] = useState(-1);
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -341,7 +345,7 @@ export default function Home() {
         if (!current) return null;
         return isFinal ? { ...current, finished: true } : { ...current, step: current.step + 1 };
       });
-    }, isFinal ? 950 : levelSixPace);
+    }, isFinal ? 1500 : levelSixPace);
     return () => window.clearTimeout(timer);
   }, [level.number, simulation]);
 
@@ -449,7 +453,7 @@ export default function Home() {
                     type="button"
                     key={room.id}
                     data-room-id={room.id}
-                    className={`bedroom bedroom--slot-${index + 1} bedroom--${room.color} ${selectedRoomId === room.id ? "is-selected" : ""} ${isHinted ? "is-hinted" : ""} ${activeActor ? "is-acting" : ""}`}
+                    className={`bedroom bedroom--slot-${index + 1} bedroom--${room.color} ${occupant ? "is-occupied" : ""} ${selectedRoomId === room.id ? "is-selected" : ""} ${isHinted ? "is-hinted" : ""} ${activeActor ? "is-acting" : ""}`}
                     onClick={() => {
                       setSelectedRoomId(room.id);
                       if (selectedCharacter) placeCharacter(selectedCharacter, room.id);
@@ -486,20 +490,36 @@ export default function Home() {
 
               {simulation && currentEvent && (
                 <div className={`simulation-layer simulation-layer--${currentEvent.tone ?? "warm"}`} aria-live="polite">
-                  <Image className="simulation-house-art" src="/art/lease-me-alone-cutaway.png" alt="" fill sizes="(max-width: 940px) 760px, 70vw" />
-                  <div className="simulation-residents" aria-hidden="true">
-                    {level.characterIds.map((characterId) => {
-                      const roomId = assignment[characterId];
-                      const roomIndex = Math.max(0, level.house.rooms.findIndex((room) => room.id === roomId));
-                      return <span className={`simulation-resident simulation-resident--slot-${roomIndex + 1}`} key={characterId}><CharacterPortrait characterId={characterId} small /></span>;
-                    })}
+                  <div className="simulation-scene">
+                    <div className="simulation-artboard">
+                      <Image className="simulation-house-art" src="/art/lease-me-alone-cutaway.png" alt="" fill sizes="(max-width: 940px) 720px, 70vw" />
+                      <div className="simulation-residents" aria-hidden="true">
+                        {level.characterIds.map((characterId) => {
+                          const roomId = assignment[characterId];
+                          const roomIndex = Math.max(0, level.house.rooms.findIndex((room) => room.id === roomId));
+                          const isSpeaking = currentEvent.characterId === characterId;
+                          return (
+                            <span className={`simulation-resident simulation-resident--slot-${roomIndex + 1} ${isSpeaking ? "is-speaking" : ""}`} key={characterId}>
+                              <CharacterPortrait characterId={characterId} small />
+                              <b>{CHARACTERS[characterId].name}</b>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
-                  <div className="simulation-clock"><span>{currentEvent.time}</span><div>{simulation.events.map((_, index) => <i key={index} className={index <= simulation.step ? "is-past" : ""} />)}</div><button type="button" onClick={() => setSimulation((current) => current ? { ...current, finished: true } : null)}>Skip</button></div>
-                  <div className="simulation-caption">
-                    {currentEvent.characterId && <CharacterPortrait characterId={currentEvent.characterId} small />}
+                  <div className={`simulation-caption ${currentEvent.characterId ? "" : "simulation-caption--narration"}`} key={`${simulation.step}-${currentEvent.time}`}>
+                    {currentEvent.characterId && (
+                      <span className="simulation-caption__speaker">
+                        <CharacterPortrait characterId={currentEvent.characterId} small />
+                        <b>{CHARACTERS[currentEvent.characterId].name}</b>
+                      </span>
+                    )}
                     <p>{currentEvent.text}</p>
                     {currentEvent.reaction && <strong>{currentEvent.reaction}</strong>}
                   </div>
+                  <div className="simulation-clock"><span>{currentEvent.time}</span><div>{simulation.events.map((_, index) => <i key={index} className={index <= simulation.step ? "is-past" : ""} />)}</div><button type="button" onClick={() => setSimulation((current) => current ? { ...current, finished: true } : null)}>Skip</button></div>
+                  <button className="simulation-skip-mobile" type="button" onClick={() => setSimulation((current) => current ? { ...current, finished: true } : null)}>Skip animation</button>
                 </div>
               )}
             </div>

@@ -492,6 +492,17 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
   .roommate-card .avatar { transform: scale(.85); transform-origin: bottom left; margin-right: -10px; }
 }
 
+@media (min-width: 941px) and (max-width: 1160px) {
+  .reference-ui .brand-lockup span { display: none; }
+  .reference-ui .brand-lockup strong { font-size: 23px; line-height: .9; }
+  .reference-ui .topbar { grid-template-columns: 44px 128px minmax(230px,1fr) 88px 132px; gap: 8px; padding-inline: 12px; }
+  .reference-ui .roommate-dock { grid-template-columns: 94px minmax(0,1fr); padding-inline: 10px; }
+  .reference-ui .dock-cards { gap: 6px; }
+  .reference-ui .roommate-card { min-width: 0; width: min(210px, 25%); grid-template-columns: 68px minmax(0,1fr) 22px; gap: 3px; }
+  .reference-ui .roommate-card .avatar { width: 64px; height: 88px; }
+  .reference-ui .roommate-card > span:nth-of-type(2) strong { font-size: 16px; }
+}
+
 @media (max-width: 940px) {
   body { overflow: auto; }
   .game-shell { height: auto; min-height: 100svh; grid-template-rows: 66px auto auto; overflow: visible; }
@@ -698,6 +709,15 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
 .reference-ui .bedroom__title small { display: none; }
 .reference-ui .bedroom.is-selected { box-shadow: inset 0 0 0 4px rgba(255,255,255,.9), inset 0 0 0 7px rgba(224,122,104,.67); }
 .reference-ui .bedroom.is-selected .bedroom__number { background: #ef9a89; color: white; }
+.reference-ui .bedroom.is-occupied .bedroom__number {
+  left: auto;
+  right: 8px;
+  top: 8px;
+  width: 25px;
+  height: 25px;
+  font-size: 13px;
+  transform: none;
+}
 .reference-ui .house-plan.is-dragging .bedroom { box-shadow: inset 0 0 0 3px rgba(255,255,255,.78), inset 0 0 0 5px rgba(224,122,104,.25); }
 .reference-ui .house-plan.is-dragging .bedroom:hover { box-shadow: inset 0 0 0 5px #fff, inset 0 0 0 8px #e88f7c; }
 .reference-ui .common-space { background: transparent; }
@@ -723,15 +743,33 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
   left: 50%;
   top: 51%;
   width: 72px;
-  height: 76px;
-  padding: 4px;
+  height: 90px;
+  display: grid;
+  grid-template-rows: 62px 18px;
+  justify-items: center;
+  align-content: start;
+  gap: 2px;
+  padding: 4px 5px;
   border: 2px solid white;
   border-radius: 6px;
   background: #fffaf0;
   box-shadow: 0 5px 10px rgba(50,38,29,.18);
   transform: translate(-50%,-50%);
 }
-.reference-ui .roommate-token > b { bottom: -2px; font-size: 6px; }
+.reference-ui .roommate-token > b {
+  position: static;
+  min-width: 48px;
+  max-width: 62px;
+  min-height: 18px;
+  display: grid;
+  place-items: center;
+  padding: 2px 6px;
+  overflow: hidden;
+  font-size: 7px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  transform: none;
+}
 .reference-ui .roommate-token .avatar { margin: 0 auto; }
 
 .reference-ui .case-panel {
@@ -771,14 +809,52 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
 }
 .reference-ui .dock-intro strong { font-family: var(--font-hand), Georgia, serif; font-size: 18px; font-weight: 400; }
 .reference-ui .roommate-card {
+  width: min(224px, 25%);
+  min-width: 184px;
   height: 106px;
+  grid-template-columns: 80px minmax(0,1fr) 24px;
+  gap: 5px;
+  padding: 5px 8px 5px 3px;
   border-radius: 7px;
   background: #fffaf0;
   box-shadow: none;
 }
 .reference-ui .roommate-card::before { display: none; }
 .reference-ui .roommate-card.is-selected { box-shadow: 0 0 0 3px #e78c79; transform: translateY(-2px); }
-.reference-ui .roommate-card > span:nth-of-type(2) strong { font-family: var(--font-hand), Georgia, serif; font-size: 18px; font-weight: 400; }
+.reference-ui .roommate-card > span:nth-of-type(2) {
+  min-width: 0;
+  overflow: visible;
+}
+.reference-ui .roommate-card > span:nth-of-type(2) strong {
+  display: block;
+  overflow: visible;
+  font-family: var(--font-hand), Georgia, serif;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+.reference-ui .roommate-card > span:nth-of-type(2) small {
+  display: block;
+  overflow: visible;
+  font-size: 6px;
+  line-height: 1.25;
+  text-overflow: clip;
+  white-space: normal;
+}
+.reference-ui .roommate-card > span:nth-of-type(2) i {
+  max-width: 100%;
+  padding-inline: 4px;
+  overflow: visible;
+  line-height: 1.2;
+  text-overflow: clip;
+  white-space: normal;
+}
+.reference-ui .roommate-card .avatar {
+  margin: 0;
+  transform: none;
+  transform-origin: center;
+}
 
 .reference-ui .avatar {
   width: 76px;
@@ -800,30 +876,159 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
 
 .reference-ui .simulation-layer {
   z-index: 40;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  gap: 6px;
+  padding: 6px;
   overflow: hidden;
   background: #f5eddf;
   box-shadow: none;
+  animation: simulation-reveal .32s ease-out both;
+}
+.reference-ui .simulation-scene {
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  container-type: size;
+}
+.reference-ui .simulation-artboard {
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  overflow: hidden;
+  transform: translate3d(-50%, -50%, 0);
+  contain: layout paint;
+}
+@supports (width: 1cqw) {
+  .reference-ui .simulation-artboard { width: min(100cqw, 150cqh); }
 }
 .reference-ui .simulation-house-art {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   filter: saturate(.92) contrast(.96) brightness(1.02);
+  animation: simulation-house-in .48s cubic-bezier(.2,.72,.28,1) both;
 }
 .reference-ui .simulation-residents {
   position: absolute;
   inset: 0;
 }
-.reference-ui .simulation-resident { position: absolute; z-index: 2; width: 58px; height: 70px; }
-.reference-ui .simulation-resident--slot-1 { left: 14%; top: 24%; }
-.reference-ui .simulation-resident--slot-2 { right: 14%; top: 24%; }
-.reference-ui .simulation-resident--slot-3 { left: 14%; bottom: 19%; }
-.reference-ui .simulation-resident--slot-4 { right: 14%; bottom: 19%; }
-.reference-ui .simulation-residents .avatar { width: 58px; height: 70px; filter: drop-shadow(0 3px 3px rgba(50,38,29,.18)); }
-.reference-ui .simulation-clock { top: auto; bottom: 7px; width: calc(100% - 18px); min-width: 0; border-radius: 8px; }
-.reference-ui .simulation-caption { bottom: 55px; width: min(540px, 78%); }
+.reference-ui .simulation-resident {
+  --resident-x: 50%;
+  --resident-y: 50%;
+  width: 54px;
+  height: 76px;
+  position: absolute;
+  z-index: 2;
+  left: var(--resident-x);
+  top: var(--resident-y);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 14px;
+  justify-items: center;
+  padding: 3px 3px 1px;
+  overflow: hidden;
+  border: 2px solid rgba(255,255,255,.94);
+  border-radius: 6px;
+  background: rgba(255,250,240,.94);
+  box-shadow: 0 3px 8px rgba(50,38,29,.18);
+  transform: translate3d(-50%, -50%, 0);
+  transform-origin: center bottom;
+  animation: simulation-resident-in .46s cubic-bezier(.2,.8,.3,1.18) both;
+}
+.reference-ui .simulation-resident:nth-child(2) { animation-delay: 70ms; }
+.reference-ui .simulation-resident:nth-child(3) { animation-delay: 140ms; }
+.reference-ui .simulation-resident:nth-child(4) { animation-delay: 210ms; }
+.reference-ui .simulation-resident--slot-1 { --resident-x: 16.7%; --resident-y: 40.5%; }
+.reference-ui .simulation-resident--slot-2 { --resident-x: 84.5%; --resident-y: 40.5%; }
+.reference-ui .simulation-resident--slot-3 { --resident-x: 16.7%; --resident-y: 74%; }
+.reference-ui .simulation-resident--slot-4 { --resident-x: 84.5%; --resident-y: 74%; }
+.reference-ui .simulation-resident.is-speaking { animation: simulation-resident-speaking .72s ease-in-out infinite alternate; }
+.reference-ui .simulation-residents .avatar {
+  width: 46px;
+  height: 56px;
+  filter: none;
+  background-position: center 22%;
+}
+.reference-ui .simulation-resident > b,
+.reference-ui .simulation-caption__speaker > b {
+  width: 100%;
+  overflow: visible;
+  color: #3f443f;
+  font: 700 8px/13px var(--font-geist-sans), sans-serif;
+  text-align: center;
+  white-space: nowrap;
+}
+.reference-ui .simulation-clock {
+  width: 100%;
+  min-width: 0;
+  position: relative;
+  left: auto;
+  top: auto;
+  bottom: auto;
+  padding: 5px 9px;
+  border-radius: 8px;
+  transform: none;
+}
+.reference-ui .simulation-clock i { transition: background-color .28s ease; }
+.reference-ui .simulation-caption {
+  width: min(540px, 100%);
+  min-height: 68px;
+  position: relative;
+  left: auto;
+  bottom: auto;
+  justify-self: center;
+  grid-template-columns: 54px minmax(0, 1fr) minmax(0, 108px);
+  gap: 9px;
+  padding: 5px 11px;
+  overflow: hidden;
+  transform: none;
+  animation: simulation-caption-in .28s ease-out both;
+}
+.reference-ui .simulation-caption--narration { grid-template-columns: minmax(0, 1fr) auto; }
+.reference-ui .simulation-caption__speaker {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: 48px 13px;
+  justify-items: center;
+  align-self: stretch;
+}
+.reference-ui .simulation-caption__speaker .avatar {
+  width: 44px;
+  height: 48px;
+  filter: none;
+  background-position: center 22%;
+}
+.reference-ui .simulation-caption p {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.reference-ui .simulation-caption strong {
+  max-width: 108px;
+  overflow-wrap: anywhere;
+  text-align: right;
+  white-space: normal;
+}
+.reference-ui .simulation-skip-mobile { display: none; }
+@keyframes simulation-reveal {
+  from { opacity: 0; }
+}
+@keyframes simulation-house-in {
+  from { opacity: 0; transform: scale(.985); }
+}
+@keyframes simulation-resident-in {
+  from { opacity: 0; transform: translate3d(-50%, calc(-50% + 10px), 0) scale(.92); }
+}
+@keyframes simulation-resident-speaking {
+  from { transform: translate3d(-50%, -50%, 0); }
+  to { transform: translate3d(-50%, calc(-50% - 3px), 0) scale(1.025); }
+}
+@keyframes simulation-caption-in {
+  from { opacity: 0; transform: translate3d(0, 6px, 0); }
+}
 
 .reference-ui .modal-backdrop { background: rgba(246,239,226,.86); backdrop-filter: blur(3px); }
 .reference-ui .result-card {
@@ -874,6 +1079,7 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
 @media (max-width: 940px) {
   .reference-ui .game-layout { grid-template-columns: 1fr; }
   .reference-ui .case-panel { min-height: 320px; }
+  .reference-ui .roommate-card { width: 210px; min-width: 210px; }
 }
 
 @media (max-width: 700px) {
@@ -881,4 +1087,21 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
   .reference-ui .house-plan { width: 720px; height: 480px; min-height: 480px; max-height: none; }
   .reference-ui .house-scroll { place-items: initial; }
   .reference-ui .brand-lockup { display: none; }
+  .reference-ui .roommate-card { width: 196px; min-width: 196px; grid-template-columns: 76px minmax(0,1fr) 22px; gap: 3px; }
+  .reference-ui .simulation-layer { position: fixed; z-index: 240; inset: 0; height: 100svh; max-height: 100svh; padding: 10px 10px calc(48px + env(safe-area-inset-bottom)); grid-template-rows: minmax(0, 1fr) auto; gap: 8px; }
+  .reference-ui .simulation-scene { border-radius: 8px; background: #f5eddf; }
+  .reference-ui .simulation-caption { width: 100%; min-height: 82px; }
+  .reference-ui .simulation-clock { min-height: 34px; position: fixed; z-index: 245; left: 10px; right: 10px; bottom: calc(8px + env(safe-area-inset-bottom)); width: auto; }
+  .reference-ui .simulation-skip-mobile { position: fixed; z-index: 246; right: 16px; bottom: calc(13px + env(safe-area-inset-bottom)); display: block; min-height: 26px; border: 0; border-radius: 14px; padding: 3px 10px; background: #fffaf0; color: #555b56; font-size: 10px; font-weight: 750; box-shadow: 0 2px 7px rgba(48,38,31,.18); pointer-events: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reference-ui .simulation-layer,
+  .reference-ui .simulation-house-art,
+  .reference-ui .simulation-resident,
+  .reference-ui .simulation-resident.is-speaking,
+  .reference-ui .simulation-caption {
+    animation: none !important;
+  }
+  .reference-ui .simulation-clock i { transition: none !important; }
 }
