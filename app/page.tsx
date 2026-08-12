@@ -61,6 +61,15 @@ const DEFAULT_DEBUG: DebugFlags = {
   solutions: false,
 };
 
+const HOUSE_ART_BY_LEVEL: Record<string, string> = {
+  "first-night": "/art/lease-me-alone-topdown-2.png",
+  "needs-vs-wants": "/art/lease-me-alone-topdown-3.png",
+  "room-to-work": "/art/levels/level-03-room-to-work.png",
+  "balcony-rights": "/art/levels/level-04-balcony-rights.png",
+  "good-enough": "/art/levels/level-05-good-enough.png",
+  housewarming: "/art/levels/level-06-housewarming.png",
+};
+
 function CharacterPortrait({ characterId, small = false }: { characterId: CharacterId; small?: boolean }) {
   return (
     <span className={`avatar avatar--${characterId} ${small ? "avatar--small" : ""}`} aria-hidden="true">
@@ -392,11 +401,7 @@ export default function Home() {
   };
 
   const selectedCharacterData = CHARACTERS[selectedCharacter];
-  const houseArt = level.house.rooms.length === 2
-    ? "/art/lease-me-alone-topdown-2.png"
-    : level.house.rooms.length === 3
-      ? "/art/lease-me-alone-topdown-3.png"
-      : "/art/lease-me-alone-topdown.png";
+  const houseArt = HOUSE_ART_BY_LEVEL[level.id] ?? "/art/lease-me-alone-topdown.png";
   const resultTitle = simulation
     ? !simulation.result.hardValid
       ? `${CHARACTERS[simulation.result.failedNeeds[0]?.characterId ?? level.characterIds[0]].name} cannot settle here.`
