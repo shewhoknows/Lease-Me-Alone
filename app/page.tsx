@@ -188,15 +188,11 @@ function findInvalidAssignment(level: GameLevel): Assignment {
 }
 
 export default function Home() {
-  const [levelIndex, setLevelIndex] = useState(() => {
-    if (process.env.NODE_ENV === "production" || typeof window === "undefined") return 0;
-    const requestedLevel = Number(new URLSearchParams(window.location.search).get("level"));
-    return Number.isInteger(requestedLevel) && requestedLevel >= 1 && requestedLevel <= GAME_LEVELS.length ? requestedLevel - 1 : 0;
-  });
+  const [levelIndex, setLevelIndex] = useState(0);
   const level = GAME_LEVELS[levelIndex];
-  const [assignment, setAssignment] = useState<Assignment>(() => emptyAssignment(GAME_LEVELS[levelIndex]));
+  const [assignment, setAssignment] = useState<Assignment>(() => emptyAssignment(GAME_LEVELS[0]));
   const [history, setHistory] = useState<Assignment[]>([]);
-  const [selectedCharacter, setSelectedCharacter] = useState<CharacterId>(GAME_LEVELS[levelIndex].characterIds[0]);
+  const [selectedCharacter, setSelectedCharacter] = useState<CharacterId>(level.characterIds[0]);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [hintIndex, setHintIndex] = useState(-1);
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -268,6 +264,15 @@ export default function Home() {
     setDebugOpen(false);
     setDebugFlags(DEFAULT_DEBUG);
   }, []);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    const requestedLevel = Number(new URLSearchParams(window.location.search).get("level"));
+    if (Number.isInteger(requestedLevel) && requestedLevel >= 1 && requestedLevel <= GAME_LEVELS.length && requestedLevel !== levelIndex + 1) {
+      const timer = window.setTimeout(() => changeLevel(requestedLevel - 1), 0);
+      return () => window.clearTimeout(timer);
+    }
+  }, [changeLevel, levelIndex]);
 
   const placeCharacter = useCallback(
     (characterId: CharacterId, roomId: string) => {
