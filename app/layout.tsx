@@ -9,18 +9,18 @@ const geist = Geist({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://flatmates-night-owl.prateekranka.chatgpt.site"),
-  title: "Flatmates — The Night Owl Problem",
-  description: "A cozy spatial logic game about finding the one living arrangement that keeps everyone happy.",
+  title: "Lease Me Alone — Six-Level Vertical Slice",
+  description: "A cozy six-level spatial logic game about matching particular roommates to the right bedrooms.",
   openGraph: {
-    title: "Flatmates — The Night Owl Problem",
-    description: "Three bedrooms. Three very particular people. One arrangement that might preserve the group chat.",
+    title: "Lease Me Alone — Six-Level Vertical Slice",
+    description: "Assign every roommate, move them in, and watch the house react across six puzzle levels.",
     type: "website",
-    images: [{ url: "/og.png", width: 1731, height: 909, alt: "Flatmates illustrated dollhouse apartment" }],
+    images: [{ url: "/og.png", width: 1731, height: 909, alt: "Lease Me Alone illustrated dollhouse apartment" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Flatmates — The Night Owl Problem",
-    description: "A cozy spatial logic game about people, space and consequences.",
+    title: "Lease Me Alone — Six-Level Vertical Slice",
+    description: "A cozy spatial logic game with six levels about people, rooms, and consequences.",
     images: ["/og.png"],
   },
 };

@@ -1,24 +1,27 @@
 # Lease Me Alone
 
-This repository contains the playable vertical slice for **Flatmates**, a cozy spatial-logic puzzle game about arranging very particular people, possessions, and pets inside a shared apartment.
+This repository contains the browser vertical slice for **Lease Me Alone**, a cozy spatial-logic puzzle game about matching particular roommates to the right bedrooms.
 
 ## Play
 
 [Play the current private build](https://flatmates-night-owl.prateekranka.chatgpt.site)
 
-The prototype includes:
+The vertical slice contains six levels:
 
-- touch-friendly character and object placement
-- room, distance, adjacency, and personality constraints
-- live resident satisfaction and case notes
-- undo, reset, hints, and tactile sound feedback
-- a household simulation whose scenes react to the chosen layout
-- Chairman Meow’s spatial behavior
-- conditional results and a post-level Flat 4B group chat
+1. **First Night** teaches room features and hard Needs.
+2. **Early Bird** adds Wants and more than one hard-valid assignment.
+3. **Room to Work** adds fixed desks and open floor space.
+4. **Balcony Rights** shows why Needs have priority over soft preferences.
+5. **Good Enough** introduces visible Household Harmony and an 85% target.
+6. **Housewarming** combines all rules in the Chapter 1 finale.
+
+The player assigns each roommate, selects **MOVE IN**, and watches the house react. A wrong answer starts a useful simulation. It has no penalty. The six levels do not yet include adjacency, relationships, movable furniture, pets, schedules, or other later campaign systems.
 
 ## Product reference
 
-The original creative and systems brief is preserved verbatim in [docs/FLATMATES_GAME_CONCEPT.md](docs/FLATMATES_GAME_CONCEPT.md). Treat it as the design north star for future work.
+The original creative and systems brief is preserved in [docs/FLATMATES_GAME_CONCEPT.md](docs/FLATMATES_GAME_CONCEPT.md). Treat it as the design north star.
+
+Use [docs/LEASE_ME_ALONE_VERTICAL_SLICE.md](docs/LEASE_ME_ALONE_VERTICAL_SLICE.md) as the implementation reference for Levels 1 through 6. It defines the puzzle data, Harmony results, validator checks, debug tools, excluded mechanics, and definition of done.
 
 ## Local development
 
@@ -41,11 +44,13 @@ npm run lint
 
 ## Project structure
 
-- `app/page.tsx` — puzzle state, placement interactions, simulation, and group chat
+- `app/page.tsx` — level flow, placement interactions, simulation, progress, and developer tools
 - `app/globals.css` — responsive dollhouse presentation and character artwork
+- `lib/game/index.ts` — level data, preference rules, Harmony, solver, and validator
 - `app/layout.tsx` — document and social-sharing metadata
 - `public/og.png` — generated social-sharing card
 - `docs/FLATMATES_GAME_CONCEPT.md` — original game concept brief
+- `docs/LEASE_ME_ALONE_VERTICAL_SLICE.md` — six-level implementation reference
 
 ## Product principles
 

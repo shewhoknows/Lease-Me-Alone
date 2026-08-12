@@ -1,334 +1,281 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  CHARACTERS,
+  GAME_LEVELS,
+  emptyAssignment,
+  evaluateAssignment,
+  solveLevel,
+  type Assignment,
+  type CharacterId,
+  type GameLevel,
+  type HarmonyResult,
+  type Preference,
+  type Room,
+  type RoomFeature,
+  type SimulationEvent,
+} from "@/lib/game";
 
-type PersonId = "tara" | "dev" | "kabir";
-type RoomId = "a" | "b" | "c";
-type ZoneId = RoomId | "living" | "kitchen" | "hall";
-type ObjectId = "catbed" | "record";
-type Picked = { type: "person"; id: PersonId } | { type: "object"; id: ObjectId };
-type Layout = {
-  people: Record<PersonId, RoomId | null>;
-  objects: Record<ObjectId, ZoneId>;
+const FEATURE_LABELS: Record<RoomFeature, { icon: string; label: string }> = {
+  daylight: { icon: "☀", label: "Daylight" },
+  morningSun: { icon: "☼", label: "Morning sun" },
+  quiet: { icon: "◇", label: "Quiet" },
+  size: { icon: "↔", label: "Size" },
+  kitchenClose: { icon: "◒", label: "Near kitchen" },
+  desk: { icon: "▤", label: "Desk" },
+  floorSpace: { icon: "□", label: "Open floor" },
+  balcony: { icon: "♧", label: "Balcony" },
+  guitarSpace: { icon: "♫", label: "Guitar space" },
+  farFromCommonSpace: { icon: "⇥", label: "Away from common space" },
 };
 
-const PEOPLE: Record<
-  PersonId,
-  {
-    name: string;
-    role: string;
-    color: string;
-    quote: string;
-    tells: string[];
-  }
-> = {
-  tara: {
-    name: "Tara",
-    role: "Early bird · light sleeper",
-    color: "coral",
-    quote: "Anywhere is fine. Somewhere sunny is finer.",
-    tells: ["Up at 5:30", "Needs yoga space", "Cat allergy"],
-  },
-  dev: {
-    name: "Dev",
-    role: "Midnight cook · extrovert",
-    color: "mustard",
-    quote: "I only use one pan. It is, admittedly, enormous.",
-    tells: ["Lives in the kitchen", "Hates tiny rooms", "Always has people over"],
-  },
-  kabir: {
-    name: "Kabir",
-    role: "Night owl · cat staff",
-    color: "blue",
-    quote: "Chairman Meow and I come as a package deal.",
-    tells: ["Plays four guitar songs", "Sleeps late", "Owns the cat"],
-  },
+const PROP_MARKS: Record<CharacterId, string> = {
+  maya: "♧",
+  dev: "◒",
+  tara: "▰",
+  finn: "▣",
+  kabir: "♪",
 };
 
-const ROOMS: Record<RoomId, { name: string; letter: string; note: string }> = {
-  a: { name: "Sunroom", letter: "A", note: "Morning light · roomy" },
-  b: { name: "Blue room", letter: "B", note: "By the kitchen · ensuite" },
-  c: { name: "Balcony room", letter: "C", note: "Quiet · far from kitchen" },
+type DragState = { characterId: CharacterId; x: number; y: number; moved: boolean };
+type SimulationState = {
+  step: number;
+  events: SimulationEvent[];
+  result: HarmonyResult;
+  finished: boolean;
 };
 
-const INITIAL_LAYOUT: Layout = {
-  people: { tara: null, dev: null, kabir: null },
-  objects: { catbed: "hall", record: "c" },
+type DebugFlags = {
+  roomFeatures: boolean;
+  characterNeeds: boolean;
+  harmonyWeights: boolean;
+  solutions: boolean;
 };
 
-const ADJACENT: Record<RoomId, RoomId[]> = {
-  a: ["b"],
-  b: ["a"],
-  c: [],
+const DEFAULT_DEBUG: DebugFlags = {
+  roomFeatures: false,
+  characterNeeds: false,
+  harmonyWeights: false,
+  solutions: false,
 };
 
-function isAdjacent(one: RoomId | null, two: RoomId | null) {
-  return !!one && !!two && ADJACENT[one].includes(two);
-}
-
-function Portrait({ person, small = false }: { person: PersonId; small?: boolean }) {
+function CharacterPortrait({ characterId, small = false }: { characterId: CharacterId; small?: boolean }) {
   return (
-    <span className={`portrait portrait--${person} ${small ? "portrait--small" : ""}`} aria-hidden="true">
-      <span className="portrait__hair" />
-      <span className="portrait__head">
-        <span className="portrait__eyes" />
-        <span className="portrait__mouth" />
-      </span>
-      <span className="portrait__body" />
-      {person === "tara" && <span className="portrait__bun" />}
-      {person === "kabir" && <span className="portrait__headphones" />}
-      {person === "dev" && <span className="portrait__glasses" />}
+    <span className={`avatar avatar--${characterId} ${small ? "avatar--small" : ""}`} aria-hidden="true">
+      <span className="avatar__body" />
+      <span className="avatar__neck" />
+      <span className="avatar__head"><i className="avatar__face" /></span>
+      <span className="avatar__hair" />
+      <span className="avatar__detail" />
+      <span className="avatar__prop">{PROP_MARKS[characterId]}</span>
     </span>
   );
 }
 
-function satisfaction(layout: Layout, person: PersonId) {
-  const room = layout.people[person];
-  const tara = layout.people.tara;
-  const kabir = layout.people.kabir;
-
-  if (!room) return { mood: "waiting", face: "•", label: "Waiting in the hall", checks: [] as { ok: boolean; text: string }[] };
-
-  const checks =
-    person === "tara"
-      ? [
-          { ok: room === "a", text: "Morning sunlight" },
-          { ok: room === "a", text: "Floor space for yoga" },
-          { ok: !isAdjacent(room, kabir), text: "No midnight guitar next door" },
-          { ok: layout.objects.catbed !== room, text: "Cat bed kept elsewhere" },
-        ]
-      : person === "dev"
-        ? [
-            { ok: room === "b", text: "A quick route to the kitchen" },
-            { ok: room !== "c", text: "Not the tiniest bedroom" },
-            { ok: true, text: "People pass by often" },
-          ]
-        : [
-            { ok: room === "c", text: "Far from breakfast clatter" },
-            { ok: layout.objects.catbed === room, text: "Chairman Meow nearby" },
-            { ok: layout.objects.record === "living", text: "Records live in the lounge" },
-            { ok: !isAdjacent(room, tara), text: "No light sleeper next door" },
-          ];
-
-  const good = checks.filter((item) => item.ok).length;
-  const ratio = good / checks.length;
-  if (ratio === 1) return { mood: "happy", face: "☺", label: "Completely happy", checks };
-  if (ratio >= 0.66) return { mood: "mostly", face: "◡", label: "Mostly happy", checks };
-  if (ratio >= 0.45) return { mood: "unsure", face: "—", label: "Something isn’t right", checks };
-  return { mood: "angry", face: "⌁", label: "Major problem", checks };
+function preferenceWeight(preference: Preference) {
+  if (preference.priority === "want") return 2;
+  if (preference.priority === "like") return 1;
+  return null;
 }
 
-function getHarmony(layout: Layout) {
-  const placed = Object.values(layout.people).filter(Boolean).length;
-  if (placed < 3) return { score: 0, label: "Three people are still negotiating" };
-  const allChecks = (["tara", "dev", "kabir"] as PersonId[]).flatMap((id) => satisfaction(layout, id).checks);
-  const score = Math.round((allChecks.filter((item) => item.ok).length / allChecks.length) * 100);
-  return {
-    score,
-    label: score === 100 ? "Domestic bliss" : score >= 80 ? "Surprisingly livable" : "Deposit definitely gone",
+function preferenceOrder(preference: Preference) {
+  return preference.priority === "need" ? 0 : preference.priority === "want" ? 1 : 2;
+}
+
+function roomFeatureText(feature: RoomFeature, value: Room["features"][RoomFeature]) {
+  const base = FEATURE_LABELS[feature];
+  if (value === true) return base.label;
+  if (value === false) return `No ${base.label.toLowerCase()}`;
+  if (feature === "daylight") return `${String(value)} daylight`;
+  if (feature === "size") return `${String(value)} room`;
+  return `${base.label}: ${String(value)}`;
+}
+
+function isFeatureShown(feature: RoomFeature, value: Room["features"][RoomFeature]) {
+  return value !== false && value !== undefined;
+}
+
+function buildFailureEvents(level: GameLevel, result: HarmonyResult): SimulationEvent[] {
+  const failure = result.failedNeeds[0];
+  const character = failure ? CHARACTERS[failure.characterId] : null;
+  const room = failure?.roomId ? level.house.rooms.find((item) => item.id === failure.roomId) : null;
+  const setup: SimulationEvent = {
+    time: "0:00",
+    text: "The boxes come through the door. Everyone starts to settle in.",
+    tone: "warm",
   };
-}
+  if (!failure || !character) return [setup];
 
-type Scene = {
-  phase: string;
-  chapter: "morning" | "afternoon" | "evening";
-  copy: string;
-  actor: PersonId;
-  tone: "good" | "bad" | "neutral";
-  reaction: string;
-};
-
-function buildSimulation(layout: Layout): Scene[] {
-  const taraRoom = layout.people.tara;
-  const devRoom = layout.people.dev;
-  const kabirRoom = layout.people.kabir;
-  const catBed = layout.objects.catbed;
-  const records = layout.objects.record;
+  const actionByFeature: Partial<Record<RoomFeature, string>> = {
+    daylight: `${character.name} puts down ${character.id === "maya" ? "a tiny plant" : "a box"}, then looks at the dim window.`,
+    quiet: `${character.name} tries to settle. Household noise comes straight through the wall.`,
+    floorSpace: `${character.name} starts to unroll a yoga mat. It meets the bed, then the wall.`,
+    desk: `${character.name} puts a laptop on the bed, types twice, and immediately regrets it.`,
+    guitarSpace: `${character.name} opens the guitar case. The stand fits nowhere.`,
+  };
 
   return [
-    taraRoom === "a"
-      ? {
-          phase: "7:02 am",
-          chapter: "morning",
-          copy: "Tara unrolls her mat inside a perfect rectangle of sunrise. No furniture is kicked.",
-          actor: "tara",
-          tone: "good",
-          reaction: "a suspiciously peaceful start",
-        }
-      : {
-          phase: "7:02 am",
-          chapter: "morning",
-          copy: "Tara attempts a sun salutation between the bed and the wardrobe. The wardrobe wins.",
-          actor: "tara",
-          tone: "bad",
-          reaction: "thud",
-        },
-    catBed === kabirRoom
-      ? {
-          phase: "8:14 am",
-          chapter: "morning",
-          copy: "Chairman Meow finds his bed beside Kabir, performs three circles and clocks in for a nap.",
-          actor: "kabir",
-          tone: "good",
-          reaction: "purr purr purr",
-        }
-      : catBed === taraRoom || (catBed === "a" && taraRoom === "a")
-        ? {
-            phase: "8:14 am",
-            chapter: "morning",
-            copy: "Chairman Meow follows his bed directly into Tara’s room. Tara follows him directly back out.",
-            actor: "tara",
-            tone: "bad",
-            reaction: "A-CHOO",
-          }
-        : {
-            phase: "8:14 am",
-            chapter: "morning",
-            copy: "Chairman Meow ignores the expensive cat bed and occupies the clean laundry instead.",
-            actor: "kabir",
-            tone: "neutral",
-            reaction: "as foretold",
-          },
-    devRoom === "b"
-      ? {
-          phase: "2:36 pm",
-          chapter: "afternoon",
-          copy: "Dev reaches the kitchen before his onions can burn. Lunch is ready. It has used seven pans.",
-          actor: "dev",
-          tone: "good",
-          reaction: "who wants seconds?",
-        }
-      : devRoom === "c"
-        ? {
-            phase: "2:36 pm",
-            chapter: "afternoon",
-            copy: "Dev sprints the full length of the flat for one forgotten chilli. Something in the pan becomes geology.",
-            actor: "dev",
-            tone: "bad",
-            reaction: "SMOKE ALARM",
-          }
-        : {
-            phase: "2:36 pm",
-            chapter: "afternoon",
-            copy: "Dev serves an ambitious lunch from a roomier-than-necessary tray. Nobody objects.",
-            actor: "dev",
-            tone: "neutral",
-            reaction: "only four pans",
-          },
-    records === "living"
-      ? {
-          phase: "8:41 pm",
-          chapter: "evening",
-          copy: "Kabir puts a record on in the living room. Dev calls it atmosphere. Tara calls it acceptable volume.",
-          actor: "kabir",
-          tone: "good",
-          reaction: "side B, quietly",
-        }
-      : {
-          phase: "8:41 pm",
-          chapter: "evening",
-          copy: "Kabir’s record player remains in a bedroom. The bass discovers that walls are largely theoretical.",
-          actor: "kabir",
-          tone: "bad",
-          reaction: "muffled thump thump",
-        },
-    isAdjacent(kabirRoom, taraRoom)
-      ? {
-          phase: "11:48 pm",
-          chapter: "evening",
-          copy: "Kabir remembers a chord. Tara’s eyes open next door. She knocks once. Then with intent.",
-          actor: "kabir",
-          tone: "bad",
-          reaction: "BANG BANG BANG",
-        }
-      : {
-          phase: "11:48 pm",
-          chapter: "evening",
-          copy: "Kabir remembers a chord from safely across the flat. Tara sleeps through all four songs.",
-          actor: "kabir",
-          tone: "good",
-          reaction: "domestic miracle",
-        },
+    setup,
+    {
+      time: "0:03",
+      characterId: failure.characterId,
+      text: actionByFeature[failure.feature] ?? `${character.name} looks around ${room?.name ?? "the room"}. Something important is missing.`,
+      reaction: character.id === "tara" ? "absolutely not." : character.id === "kabir" ? "Okay, tiny issue." : "…",
+      tone: "tense",
+    },
   ];
 }
 
-export default function Home() {
-  const [layout, setLayout] = useState<Layout>(INITIAL_LAYOUT);
-  const [history, setHistory] = useState<Layout[]>([]);
-  const [picked, setPicked] = useState<Picked | null>({ type: "person", id: "tara" });
-  const [hint, setHint] = useState<string | null>(null);
-  const [drag, setDrag] = useState<{ item: Picked; x: number; y: number; moved: boolean } | null>(null);
-  const [simulation, setSimulation] = useState<{ step: number; done: boolean } | null>(null);
-  const [groupChat, setGroupChat] = useState(false);
-  const [soundOn, setSoundOn] = useState(true);
-  const dragStart = useRef<{ x: number; y: number } | null>(null);
+function buildNearMissEvents(level: GameLevel, assignment: Assignment, result: HarmonyResult): SimulationEvent[] {
+  if (level.number === 2 && result.hardValid && result.harmony < level.authoredMaxHarmony) {
+    return [
+      { time: "5:30", characterId: "tara", text: "Tara checks the clock, then the dark window. Morning has not reached this room.", reaction: "😐", tone: "comic" },
+      { time: "7:10", characterId: "maya", text: "Maya tries to place five plants in the small room. One waits on the floor.", reaction: "not ideal", tone: "comic" },
+      { time: "7:20", characterId: "dev", text: "Dev reaches the kitchen without complaint. At least somebody is delighted.", reaction: "toast?", tone: "warm" },
+    ];
+  }
+  if (level.number === 6 && result.hardValid && !result.passed) {
+    const finnRoom = assignment.finn;
+    const taraRoom = assignment.tara;
+    return [
+      { time: "10:00", characterId: "finn", text: `Finn starts work in ${level.house.rooms.find((room) => room.id === finnRoom)?.name ?? "his room"}. The blender starts beside the common area.`, reaction: "headphones on", tone: "comic" },
+      { time: "05:31", characterId: "tara", text: `Tara wakes in ${level.house.rooms.find((room) => room.id === taraRoom)?.name ?? "her room"}. The window is still dark.`, reaction: "😐", tone: "tense" },
+    ];
+  }
+  return level.simulation;
+}
 
-  const placedCount = Object.values(layout.people).filter(Boolean).length;
-  const harmony = useMemo(() => getHarmony(layout), [layout]);
-  const scenes = useMemo(() => buildSimulation(layout), [layout]);
-  const selectedPerson = picked?.type === "person" ? picked.id : null;
+function makeAssignment(level: GameLevel, value: Record<CharacterId, string>): Assignment {
+  const next = emptyAssignment(level);
+  level.characterIds.forEach((id) => {
+    next[id] = value[id];
+  });
+  return next;
+}
+
+function findInvalidAssignment(level: GameLevel): Assignment {
+  const roomIds = level.house.rooms.map((room) => room.id);
+  const candidates: string[][] = [];
+  const visit = (used: string[], remaining: string[]) => {
+    if (!remaining.length) {
+      candidates.push(used);
+      return;
+    }
+    remaining.forEach((roomId, index) => visit([...used, roomId], [...remaining.slice(0, index), ...remaining.slice(index + 1)]));
+  };
+  visit([], roomIds);
+  for (const candidate of candidates) {
+    const assignment = emptyAssignment(level);
+    level.characterIds.forEach((id, index) => {
+      assignment[id] = candidate[index];
+    });
+    if (!evaluateAssignment(level, assignment).hardValid) return assignment;
+  }
+  return emptyAssignment(level);
+}
+
+export default function Home() {
+  const [levelIndex, setLevelIndex] = useState(0);
+  const level = GAME_LEVELS[levelIndex];
+  const [assignment, setAssignment] = useState<Assignment>(() => emptyAssignment(GAME_LEVELS[0]));
+  const [history, setHistory] = useState<Assignment[]>([]);
+  const [selectedCharacter, setSelectedCharacter] = useState<CharacterId>(level.characterIds[0]);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [hintIndex, setHintIndex] = useState(-1);
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const [simulation, setSimulation] = useState<SimulationState | null>(null);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
+  const [completed, setCompleted] = useState<Record<number, number>>({});
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [debugFlags, setDebugFlags] = useState<DebugFlags>(DEFAULT_DEBUG);
+  const dragStart = useRef<{ x: number; y: number } | null>(null);
+  const titlePressTimer = useRef<number | null>(null);
+
+  const placedCount = level.characterIds.filter((id) => Boolean(assignment[id])).length;
+  const allPlaced = placedCount === level.characterIds.length;
+  const liveResult = useMemo(() => evaluateAssignment(level, assignment), [assignment, level]);
+  const solverReport = useMemo(() => solveLevel(level), [level]);
+  const selectedPreferences = useMemo(
+    () => level.preferences.filter((item) => item.characterId === selectedCharacter).sort((a, b) => preferenceOrder(a) - preferenceOrder(b)),
+    [level, selectedCharacter],
+  );
+  const selectedRoom = selectedRoomId ? level.house.rooms.find((item) => item.id === selectedRoomId) ?? null : null;
+  const activeHint = hintIndex >= 0 ? level.hints[hintIndex % level.hints.length] : null;
+  const maxUnlocked = Math.min(GAME_LEVELS.length, Math.max(1, ...Object.keys(completed).map(Number).map((number) => number + 1)));
+  const currentEvent = simulation ? simulation.events[simulation.step] : null;
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const stored = window.localStorage.getItem("lease-me-alone-progress-v1");
+        if (stored) setCompleted(JSON.parse(stored) as Record<number, number>);
+      } catch {
+        // Local progress is optional.
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const makeSound = useCallback(
-    (kind: "pick" | "drop" | "button" = "drop") => {
+    (kind: "pick" | "drop" | "move") => {
       if (!soundOn || typeof window === "undefined") return;
-      const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!AudioContextClass) return;
-      const ctx = new AudioContextClass();
-      const oscillator = ctx.createOscillator();
-      const gain = ctx.createGain();
+      const AudioContextType = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextType) return;
+      const context = new AudioContextType();
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
       oscillator.type = kind === "drop" ? "sine" : "triangle";
-      oscillator.frequency.setValueAtTime(kind === "pick" ? 260 : kind === "button" ? 360 : 180, ctx.currentTime);
-      oscillator.frequency.exponentialRampToValueAtTime(kind === "drop" ? 120 : 240, ctx.currentTime + 0.08);
-      gain.gain.setValueAtTime(0.045, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
-      oscillator.connect(gain).connect(ctx.destination);
+      oscillator.frequency.setValueAtTime(kind === "pick" ? 280 : kind === "move" ? 350 : 190, context.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(kind === "drop" ? 125 : 230, context.currentTime + 0.09);
+      gain.gain.setValueAtTime(0.035, context.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.11);
+      oscillator.connect(gain).connect(context.destination);
       oscillator.start();
-      oscillator.stop(ctx.currentTime + 0.11);
-      oscillator.addEventListener("ended", () => void ctx.close());
+      oscillator.stop(context.currentTime + 0.12);
+      oscillator.addEventListener("ended", () => void context.close());
     },
     [soundOn],
   );
 
-  const commit = useCallback(
-    (next: Layout) => {
-      setHistory((items) => [...items.slice(-11), layout]);
-      setLayout(next);
+  const changeLevel = useCallback((index: number) => {
+    const nextLevel = GAME_LEVELS[index];
+    setLevelIndex(index);
+    setAssignment(emptyAssignment(nextLevel));
+    setHistory([]);
+    setSelectedCharacter(nextLevel.characterIds[0]);
+    setSelectedRoomId(null);
+    setHintIndex(-1);
+    setSimulation(null);
+    setMapOpen(false);
+    setDebugOpen(false);
+    setDebugFlags(DEFAULT_DEBUG);
+  }, []);
+
+  const placeCharacter = useCallback(
+    (characterId: CharacterId, roomId: string) => {
+      if (simulation) return;
+      const previousRoom = assignment[characterId];
+      const occupant = level.characterIds.find((id) => id !== characterId && assignment[id] === roomId);
+      const next = { ...assignment, [characterId]: roomId };
+      if (occupant) next[occupant] = previousRoom ?? null;
+      setHistory((items) => [...items.slice(-14), assignment]);
+      setAssignment(next);
+      setSelectedCharacter(characterId);
+      setSelectedRoomId(roomId);
       makeSound("drop");
     },
-    [layout, makeSound],
+    [assignment, level.characterIds, makeSound, simulation],
   );
 
-  const place = useCallback(
-    (item: Picked, zone: ZoneId) => {
-      if (item.type === "person" && !(["a", "b", "c"] as ZoneId[]).includes(zone)) return;
-      if (item.type === "person") {
-        const room = zone as RoomId;
-        const displaced = (Object.entries(layout.people) as [PersonId, RoomId | null][]).find(
-          ([id, assigned]) => id !== item.id && assigned === room,
-        )?.[0];
-        commit({
-          ...layout,
-          people: { ...layout.people, [item.id]: room, ...(displaced ? { [displaced]: null } : {}) },
-        });
-        setPicked({ type: "person", id: item.id });
-      } else {
-        commit({ ...layout, objects: { ...layout.objects, [item.id]: zone } });
-        setPicked(item);
-      }
-    },
-    [commit, layout],
-  );
-
-  const handleZone = (zone: ZoneId) => {
-    if (picked) place(picked, zone);
-  };
-
-  const beginPick = (event: React.PointerEvent, item: Picked) => {
+  const beginDrag = (event: React.PointerEvent, characterId: CharacterId) => {
     if (simulation) return;
     event.currentTarget.setPointerCapture?.(event.pointerId);
     dragStart.current = { x: event.clientX, y: event.clientY };
-    setDrag({ item, x: event.clientX, y: event.clientY, moved: false });
-    setPicked(item);
+    setSelectedCharacter(characterId);
+    setSelectedRoomId(null);
+    setDrag({ characterId, x: event.clientX, y: event.clientY, moved: false });
     makeSound("pick");
   };
 
@@ -336,15 +283,15 @@ export default function Home() {
     if (!drag) return;
     const move = (event: PointerEvent) => {
       const start = dragStart.current;
-      const moved = !!start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 7;
-      setDrag((current) => (current ? { ...current, x: event.clientX, y: event.clientY, moved: current.moved || moved } : null));
+      const moved = Boolean(start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 7);
+      setDrag((current) => current ? { ...current, x: event.clientX, y: event.clientY, moved: current.moved || moved } : null);
     };
     const end = (event: PointerEvent) => {
       setDrag((current) => {
         if (current?.moved) {
-          const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-dropzone]");
-          const zone = target?.dataset.dropzone as ZoneId | undefined;
-          if (zone) place(current.item, zone);
+          const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-room-id]");
+          const roomId = target?.dataset.roomId;
+          if (roomId) placeCharacter(current.characterId, roomId);
         }
         return null;
       });
@@ -358,438 +305,350 @@ export default function Home() {
       window.removeEventListener("pointerup", end);
       window.removeEventListener("pointercancel", end);
     };
-  }, [drag, place]);
+  }, [drag, placeCharacter]);
+
+  const beginSimulation = useCallback((candidate: Assignment = assignment) => {
+    const result = evaluateAssignment(level, candidate);
+    if (!result.complete) return;
+    const events = !result.hardValid
+      ? buildFailureEvents(level, result)
+      : buildNearMissEvents(level, candidate, result);
+    setAssignment(candidate);
+    setSelectedRoomId(null);
+    setHintIndex(-1);
+    setSimulation({ step: 0, events, result, finished: false });
+    makeSound("move");
+  }, [assignment, level, makeSound]);
 
   useEffect(() => {
-    if (!simulation || simulation.done) return;
+    if (!simulation || simulation.finished) return;
+    const isFinal = simulation.step >= simulation.events.length - 1;
+    const levelSixPace = level.number === 6 && simulation.result.passed ? 3400 : 1900;
     const timer = window.setTimeout(() => {
       setSimulation((current) => {
         if (!current) return null;
-        if (current.step >= scenes.length - 1) return { ...current, done: true };
-        return { step: current.step + 1, done: false };
+        return isFinal ? { ...current, finished: true } : { ...current, step: current.step + 1 };
       });
-    }, 2450);
+    }, isFinal ? 950 : levelSixPace);
     return () => window.clearTimeout(timer);
-  }, [scenes.length, simulation]);
+  }, [level.number, simulation]);
+
+  const reset = useCallback(() => {
+    setAssignment(emptyAssignment(level));
+    setHistory([]);
+    setSelectedCharacter(level.characterIds[0]);
+    setSelectedRoomId(null);
+    setHintIndex(-1);
+    setSimulation(null);
+  }, [level]);
 
   const undo = () => {
     const previous = history.at(-1);
     if (!previous || simulation) return;
-    setLayout(previous);
+    setAssignment(previous);
     setHistory((items) => items.slice(0, -1));
-    makeSound("button");
+    makeSound("move");
   };
 
-  const startSimulation = () => {
-    if (placedCount < 3) {
-      setHint("The hallway is getting awkward. Give everyone a bedroom first.");
-      return;
+  const recordCompletion = (result: HarmonyResult) => {
+    const next = { ...completed, [level.number]: Math.max(completed[level.number] ?? 0, result.harmony) };
+    setCompleted(next);
+    try {
+      window.localStorage.setItem("lease-me-alone-progress-v1", JSON.stringify(next));
+    } catch {
+      // The game remains playable without stored progress.
     }
-    setHint(null);
-    setPicked(null);
-    setGroupChat(false);
-    setSimulation({ step: 0, done: false });
-    makeSound("button");
   };
 
-  const activeSimulation = simulation ? scenes[simulation.step] : null;
-  const actorRoom = activeSimulation ? layout.people[activeSimulation.actor] : null;
-
-  const objectToken = (id: ObjectId) => {
-    const active = picked?.type === "object" && picked.id === id;
-    return (
-      <button
-        type="button"
-        className={`object-token ${active ? "is-picked" : ""}`}
-        onPointerDown={(event) => {
-          event.stopPropagation();
-          beginPick(event, { type: "object", id });
-        }}
-        onClick={(event) => event.stopPropagation()}
-        aria-label={`Pick up ${id === "catbed" ? "Chairman Meow's cat bed" : "record player"}`}
-      >
-        <span>{id === "catbed" ? "🐈" : "♫"}</span>
-        <small>{id === "catbed" ? "cat bed" : "records"}</small>
-      </button>
-    );
+  const continueAfterResult = () => {
+    if (!simulation?.result.passed) return;
+    recordCompletion(simulation.result);
+    if (levelIndex < GAME_LEVELS.length - 1) changeLevel(levelIndex + 1);
+    else {
+      setSimulation(null);
+      setMapOpen(true);
+    }
   };
 
-  const room = (id: RoomId) => {
-    const occupant = (Object.entries(layout.people) as [PersonId, RoomId | null][]).find(([, assigned]) => assigned === id)?.[0];
-    const isTarget = picked?.type === "person" || picked?.type === "object";
-    return (
-      <div
-        role="button"
-        tabIndex={0}
-        className={`room room--${id} ${occupant ? "is-lived-in" : ""} ${isTarget ? "is-drop-ready" : ""}`}
-        data-dropzone={id}
-        onClick={() => handleZone(id)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            handleZone(id);
-          }
-        }}
-        aria-label={`${ROOMS[id].name}${occupant ? `, occupied by ${PEOPLE[occupant].name}` : ", empty"}. Tap to place selected item.`}
-      >
-        <span className="room__label">
-          <span>Room {ROOMS[id].letter}</span>
-          <strong>{ROOMS[id].name}</strong>
-          <small>{ROOMS[id].note}</small>
-        </span>
-        <span className="window"><i /></span>
-        <span className="bed"><i /></span>
-        {id === "a" && <><span className="sunbeam" /><span className="plant">♧</span><span className="rug rug--round" /></>}
-        {id === "b" && <><span className="ensuite">shower<br />inside</span><span className="lamp">●</span></>}
-        {id === "c" && <><span className="balcony">fresh air<br />→</span><span className="guitar">♩</span></>}
-        {occupant && (
-          <span className={`resident resident--${occupant}`}>
-            <Portrait person={occupant} small />
-            <span className={`mood-dot mood-dot--${satisfaction(layout, occupant).mood}`}>{satisfaction(layout, occupant).face}</span>
-          </span>
-        )}
-        {layout.objects.catbed === id && objectToken("catbed")}
-        {layout.objects.record === id && objectToken("record")}
-      </div>
-    );
-  };
+  const selectedCharacterData = CHARACTERS[selectedCharacter];
+  const resultTitle = simulation
+    ? !simulation.result.hardValid
+      ? `${CHARACTERS[simulation.result.failedNeeds[0]?.characterId ?? level.characterIds[0]].name} cannot settle here.`
+      : simulation.result.harmony === level.authoredMaxHarmony
+        ? level.successTitle
+        : level.nearMissTitle ?? "Everyone could live here. They probably shouldn't."
+    : "";
 
   return (
     <main className="game-shell">
       <header className="topbar">
-        <button className="round-button" type="button" aria-label="Back to chapter map">←</button>
-        <div className="level-title">
-          <span>Chapter 4 · Chairman Meow</span>
-          <h1>4B — The Night Owl Problem</h1>
+        <button className="icon-button" type="button" onClick={() => setMapOpen(true)} aria-label="Open level map">←</button>
+        <div className="brand-lockup"><strong>Lease Me Alone</strong><span>a puzzle about living with people</span></div>
+        <div
+          className="level-heading"
+          onPointerDown={() => {
+            if (process.env.NODE_ENV === "production") return;
+            titlePressTimer.current = window.setTimeout(() => setDebugOpen(true), 700);
+          }}
+          onPointerUp={() => { if (titlePressTimer.current) window.clearTimeout(titlePressTimer.current); }}
+          onPointerLeave={() => { if (titlePressTimer.current) window.clearTimeout(titlePressTimer.current); }}
+        >
+          <span>{level.chapter} · Level {String(level.number).padStart(2, "0")}</span>
+          <h1>{level.title}</h1>
         </div>
-        <div className="topbar__actions">
-          <button
-            className="round-button sound-button"
-            type="button"
-            aria-label={soundOn ? "Mute sound" : "Turn sound on"}
-            aria-pressed={soundOn}
-            onClick={() => setSoundOn((value) => !value)}
-          >
-            {soundOn ? "♪" : "×"}
-          </button>
-          <button
-            className="hint-button"
-            type="button"
-            onClick={() => setHint("TARA: I’m starting to think I’d sleep better where the sun arrives before Kabir’s guitar does.")}
-          >
-            <span aria-hidden="true">✦</span> Hint
-          </button>
+        <div className="level-pips" aria-label={`Level ${level.number} of ${GAME_LEVELS.length}`}>
+          {GAME_LEVELS.map((item) => <i key={item.id} className={`${item.number === level.number ? "is-current" : ""} ${completed[item.number] !== undefined ? "is-complete" : ""}`} />)}
+        </div>
+        <div className="top-actions">
+          <button className="text-button" type="button" onClick={() => setHintIndex((index) => (index + 1) % level.hints.length)}>✦ Hint</button>
+          <button className="icon-button" type="button" onClick={() => setSoundOn((value) => !value)} aria-label={soundOn ? "Mute sound" : "Turn sound on"}>{soundOn ? "♪" : "×"}</button>
         </div>
       </header>
 
-      <section className="game-stage">
-        <div className="board-column">
-          <div className="objective-note">
-            <span className="objective-note__pin" />
-            <span><small>HOUSEHOLD GOAL</small> Make everyone happy. Yes, everyone.</span>
-            <strong>{placedCount}/3 moved in</strong>
+      <section className="game-layout">
+        <section className="board-panel" aria-label={`${level.title} apartment puzzle`}>
+          <div className="objective-strip">
+            <div><span>HOUSEHOLD GOAL</span><strong>{level.teaching}</strong></div>
+            <div className="objective-meta">
+              <span>{"★".repeat(level.difficulty)}{"☆".repeat(5 - level.difficulty)}</span>
+              <b>{placedCount}/{level.characterIds.length} assigned</b>
+              {level.showHarmony && allPlaced && <strong className="harmony-live"><i />{liveResult.harmony}% Harmony</strong>}
+            </div>
           </div>
 
-          <div className="apartment-wrap">
-            <div className="apartment-shadow" />
-            <div className={`apartment ${simulation ? "is-running" : ""}`}>
-              {room("a")}
-              {room("b")}
-              {room("c")}
+          {level.openingCopy && <p className="opening-note">{level.openingCopy}</p>}
 
-              <div
-                role="button"
-                tabIndex={0}
-                className="common-room living-room"
-                data-dropzone="living"
-                onClick={() => handleZone("living")}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    handleZone("living");
-                  }
-                }}
-                aria-label="Living room. Tap to place a selected object."
-              >
-                <span className="common-room__label">LIVING ROOM</span>
+          <div className="house-scroll">
+            <div className="house-shadow" />
+            <div className={`house-plan house-plan--${level.house.rooms.length} ${drag?.moved ? "is-dragging" : ""} ${simulation ? "is-simulating" : ""}`}>
+              {level.house.rooms.map((room, index) => {
+                const occupant = level.characterIds.find((id) => assignment[id] === room.id);
+                const showFeatures = selectedRoomId === room.id || debugFlags.roomFeatures;
+                const isHinted = activeHint?.focusRoomId === room.id;
+                const activeActor = currentEvent?.characterId && occupant === currentEvent.characterId;
+                return (
+                  <button
+                    type="button"
+                    key={room.id}
+                    data-room-id={room.id}
+                    className={`bedroom bedroom--slot-${index + 1} bedroom--${room.color} ${selectedRoomId === room.id ? "is-selected" : ""} ${isHinted ? "is-hinted" : ""} ${activeActor ? "is-acting" : ""}`}
+                    onClick={() => {
+                      setSelectedRoomId(room.id);
+                      if (selectedCharacter) placeCharacter(selectedCharacter, room.id);
+                    }}
+                    aria-label={`${room.name}. ${room.description}${occupant ? ` Occupied by ${CHARACTERS[occupant].name}.` : " Empty."}`}
+                  >
+                    <span className="bedroom__wash" />
+                    <span className="bedroom__title"><small>ROOM {index + 1}</small><strong>{room.name}</strong></span>
+                    <span className="room-window"><i /></span>
+                    {(room.features.daylight === "strong" || room.features.morningSun) && <span className="room-sunbeam" />}
+                    <span className="room-bed"><i /><b /></span>
+                    <span className="room-rug" />
+                    {room.features.desk && <span className="room-desk"><i>▤</i></span>}
+                    {room.features.floorSpace && <span className="room-floor">clear floor</span>}
+                    {room.features.balcony && <span className="room-balcony"><i>♧</i><b /></span>}
+                    {room.features.guitarSpace && <span className="room-guitar">♪</span>}
+                    {room.features.kitchenClose && <span className="room-kitchen-arrow">kitchen →</span>}
+                    {room.features.farFromCommonSpace && <span className="room-distance">quiet end</span>}
+
+                    {occupant && (
+                      <span className={`roommate-token ${activeActor ? "is-active" : ""}`}>
+                        <CharacterPortrait characterId={occupant} small />
+                        <b>{CHARACTERS[occupant].name}</b>
+                        {debugFlags.characterNeeds && <em>{level.preferences.filter((item) => item.characterId === occupant && item.priority === "need").map((item) => item.icon).join(" ")}</em>}
+                      </span>
+                    )}
+
+                    {showFeatures && (
+                      <span className="room-feature-card">
+                        <b>{room.description}</b>
+                        {Object.entries(room.features)
+                          .filter(([feature, value]) => isFeatureShown(feature as RoomFeature, value))
+                          .map(([feature, value]) => (
+                            <i key={feature}><span>{FEATURE_LABELS[feature as RoomFeature].icon}</span>{roomFeatureText(feature as RoomFeature, value)}</i>
+                          ))}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+
+              <div className="common-space" aria-label="Shared living room and kitchen">
+                <span className="common-space__label">SHARED SPACE</span>
                 <span className="sofa"><i /><i /></span>
-                <span className="coffee-table">☕</span>
-                <span className="big-plant">♧</span>
-                <span className="television">TONIGHT<br /><b>NOTHING</b></span>
-                {layout.objects.catbed === "living" && objectToken("catbed")}
-                {layout.objects.record === "living" && objectToken("record")}
+                <span className="coffee-table"><i /></span>
+                <span className="dining-table"><i /><i /><i /><i /></span>
+                <span className="kitchen-unit"><i /><i /><i /></span>
+                <span className="common-plant">♧</span>
+                <span className="front-door">ENTRANCE</span>
               </div>
 
-              <div
-                role="button"
-                tabIndex={0}
-                className="common-room kitchen"
-                data-dropzone="kitchen"
-                onClick={() => handleZone("kitchen")}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    handleZone("kitchen");
-                  }
-                }}
-                aria-label="Kitchen. Tap to place a selected object."
-              >
-                <span className="common-room__label">KITCHEN</span>
-                <span className="counter"><i /><i /><i /></span>
-                <span className="fridge">DEV<br />DO NOT<br />EAT</span>
-                <span className="kettle">♨</span>
-                {layout.objects.catbed === "kitchen" && objectToken("catbed")}
-                {layout.objects.record === "kitchen" && objectToken("record")}
-              </div>
-
-              <div
-                role="button"
-                tabIndex={0}
-                className="hall"
-                data-dropzone="hall"
-                onClick={() => handleZone("hall")}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    handleZone("hall");
-                  }
-                }}
-                aria-label="Hallway. Tap to place a selected object."
-              >
-                <span>HALL</span>
-                <i className="front-door">4B</i>
-                {layout.objects.catbed === "hall" && objectToken("catbed")}
-                {layout.objects.record === "hall" && objectToken("record")}
-              </div>
-
-              {simulation && activeSimulation && (
-                <div className={`life-layer life-layer--step-${simulation.step} life-layer--${activeSimulation.tone}`} aria-live="polite">
-                  <div className="day-progress" aria-hidden="true">
-                    <span className={activeSimulation.chapter === "morning" ? "is-now" : ""}>☼ <i>morning</i></span>
-                    <b />
-                    <span className={activeSimulation.chapter === "afternoon" ? "is-now" : ""}>◐ <i>afternoon</i></span>
-                    <b />
-                    <span className={activeSimulation.chapter === "evening" ? "is-now" : ""}>☾ <i>evening</i></span>
-                  </div>
-                  <div className={`life-person life-person--${activeSimulation.actor} life-person--room-${actorRoom ?? "hall"}`}>
-                    <Portrait person={activeSimulation.actor} small />
-                    <span className="life-reaction">{activeSimulation.reaction}</span>
-                  </div>
-                  <div className="life-cat">🐈</div>
-                  <div className="life-caption">
-                    <small>{activeSimulation.phase}</small>
-                    <p>{activeSimulation.copy}</p>
+              {simulation && currentEvent && (
+                <div className={`simulation-layer simulation-layer--${currentEvent.tone ?? "warm"}`} aria-live="polite">
+                  <div className="simulation-clock"><span>{currentEvent.time}</span><div>{simulation.events.map((_, index) => <i key={index} className={index <= simulation.step ? "is-past" : ""} />)}</div><button type="button" onClick={() => setSimulation((current) => current ? { ...current, finished: true } : null)}>Skip</button></div>
+                  <div className="simulation-caption">
+                    {currentEvent.characterId && <CharacterPortrait characterId={currentEvent.characterId} small />}
+                    <p>{currentEvent.text}</p>
+                    {currentEvent.reaction && <strong>{currentEvent.reaction}</strong>}
                   </div>
                 </div>
               )}
             </div>
-
-            {hint && (
-              <div className="message-toast" role="status">
-                <span className="message-toast__avatar">T</span>
-                <p>{hint}</p>
-                <button type="button" onClick={() => setHint(null)} aria-label="Dismiss hint">×</button>
-              </div>
-            )}
-
-            {simulation?.done && !groupChat && (
-              <div className="result-card" role="dialog" aria-modal="true" aria-labelledby="result-title">
-                <span className="result-card__eyebrow">THE HOUSE HAS SPOKEN</span>
-                <div className="result-card__house" aria-hidden="true">⌂</div>
-                <h2 id="result-title">{harmony.label}</h2>
-                <p>
-                  {harmony.score === 100
-                    ? "Against all available evidence, these people can live together."
-                    : harmony.score >= 80
-                      ? "A few doors will be slammed, but the group chat may survive."
-                      : "Somebody has already started browsing rental listings."}
-                </p>
-                <div className="result-moods">
-                  {(["tara", "dev", "kabir"] as PersonId[]).map((id) => (
-                    <span key={id}><Portrait person={id} small /><b>{satisfaction(layout, id).face}</b></span>
-                  ))}
-                </div>
-                <div className="result-actions">
-                  <button className="primary-button" type="button" onClick={() => setGroupChat(true)}>
-                    Open Flat 4B chat
-                  </button>
-                  <button className="secondary-button" type="button" onClick={() => setSimulation(null)}>
-                    Rearrange
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {simulation?.done && groupChat && (
-              <div className="group-chat" role="dialog" aria-modal="true" aria-labelledby="chat-title">
-                <div className="group-chat__top">
-                  <button type="button" onClick={() => setGroupChat(false)} aria-label="Back to results">←</button>
-                  <div><small>HOUSEHOLD GROUP CHAT</small><h2 id="chat-title">FLAT 4B</h2></div>
-                  <span>3 flatmates · 1 cat</span>
-                </div>
-                <div className="chat-stream">
-                  <div className="chat-line chat-line--dev"><b>DEV</b><p>who ate my leftovers</p></div>
-                  <div className="chat-line chat-line--kabir"><b>KABIR</b><p>not me</p></div>
-                  <div className="chat-line chat-line--tara"><b>TARA</b><p>Kabir</p></div>
-                  <div className="chat-line chat-line--kabir"><b>KABIR</b><p>okay but define “ate”</p></div>
-                  <div className="chat-line chat-line--cat"><b>CHAIRMAN MEOW</b><p>🐾</p></div>
-                  <div className="chat-divider">later that evening</div>
-                  <div className="chat-line chat-line--tara">
-                    <b>TARA</b>
-                    <p>{harmony.score === 100 ? "fine. the room arrangement works." : harmony.score >= 80 ? "this is… less bad than expected." : "we need to discuss the bedroom situation."}</p>
-                  </div>
-                  <div className="chat-line chat-line--dev"><b>DEV</b><p>{harmony.score === 100 ? "HOUSE DINNER 🎉" : "house meeting? i’ll make snacks"}</p></div>
-                  <div className="chat-line chat-line--kabir"><b>KABIR</b><p>Chairman has voted yes</p></div>
-                </div>
-                <div className="chat-compose"><span>Message Flat 4B…</span><b>↑</b></div>
-                <button className="chat-done" type="button" onClick={() => { setGroupChat(false); setSimulation(null); }}>
-                  Back to the apartment
-                </button>
-              </div>
-            )}
           </div>
 
-          <div className="controls-row">
-            <div className="quiet-controls">
-              <button type="button" onClick={undo} disabled={!history.length || !!simulation}>↶ Undo</button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (simulation) return;
-                  setHistory((items) => [...items, layout]);
-                  setLayout(INITIAL_LAYOUT);
-                  setPicked({ type: "person", id: "tara" });
-                }}
-                disabled={!!simulation}
-              >
-                Start over
-              </button>
+          <div className="board-controls">
+            <div>
+              <button type="button" onClick={undo} disabled={!history.length || Boolean(simulation)}>↶ Undo</button>
+              <button type="button" onClick={reset} disabled={Boolean(simulation)}>Reset</button>
             </div>
-            <span className="picked-caption">
-              {picked?.type === "person" ? `${PEOPLE[picked.id].name} is ready to move` : picked?.type === "object" ? `Moving the ${picked.id === "catbed" ? "cat bed" : "record player"}` : "The flat is alive"}
-            </span>
-            <button className="move-in-button" type="button" onClick={startSimulation} disabled={!!simulation && !simulation.done}>
-              <span>Open the house</span>
-              <strong>MOVE IN</strong>
-              <i>→</i>
+            <p>{selectedCharacter ? `${CHARACTERS[selectedCharacter].name} is ready. Select a room.` : "Select a roommate."}</p>
+            <button className="move-in-button" type="button" disabled={!allPlaced || Boolean(simulation)} onClick={() => beginSimulation()}>
+              <span>{allPlaced ? "Open the house" : `${level.characterIds.length - placedCount} still need a room`}</span>
+              <strong>MOVE IN</strong><i>→</i>
             </button>
           </div>
-        </div>
+
+          {activeHint && (
+            <div className="hint-note" role="status">
+              <span>{activeHint.characterId ? CHARACTERS[activeHint.characterId].name.slice(0, 1) : "✦"}</span>
+              <div><small>HINT {hintIndex + 1} OF 3</small><p>{activeHint.text}</p></div>
+              <button type="button" onClick={() => setHintIndex(-1)} aria-label="Close hint">×</button>
+            </div>
+          )}
+        </section>
 
         <aside className="case-panel">
-          <div className="case-panel__tab">CASE NOTES</div>
-          {selectedPerson ? (
-            <div className="person-file">
-              <div className="person-file__intro">
-                <Portrait person={selectedPerson} />
-                <div>
-                  <span className={`status-stamp status-stamp--${satisfaction(layout, selectedPerson).mood}`}>
-                    {satisfaction(layout, selectedPerson).face} {satisfaction(layout, selectedPerson).label}
-                  </span>
-                  <h2>{PEOPLE[selectedPerson].name}</h2>
-                  <p>{PEOPLE[selectedPerson].role}</p>
-                </div>
-              </div>
-              <blockquote>“{PEOPLE[selectedPerson].quote}”</blockquote>
-              <div className="tells">
-                {PEOPLE[selectedPerson].tells.map((tell, index) => <span key={tell}><b>{["◷", "⌂", "✦"][index]}</b>{tell}</span>)}
-              </div>
-              <div className="relationship-note">
-                <span>{selectedPerson === "dev" ? "👯" : selectedPerson === "tara" ? "😤" : "😬"}</span>
-                <p>
-                  <small>KNOWN RELATIONSHIP</small>
-                  {selectedPerson === "dev" ? "Considers everyone a close friend" : selectedPerson === "tara" ? "Kabir: musically incompatible" : "Tara: terrifying before coffee"}
-                </p>
-              </div>
-              <div className="needs">
-                <h3>{layout.people[selectedPerson] ? "How it’s going" : "What they need"}</h3>
-                {(layout.people[selectedPerson]
-                  ? satisfaction(layout, selectedPerson).checks
-                  : selectedPerson === "tara"
-                    ? [
-                        { ok: true, text: "Morning sunlight" },
-                        { ok: true, text: "Enough floor for yoga" },
-                        { ok: false, text: "Cannot share a wall with Kabir" },
-                        { ok: false, text: "Keep Chairman Meow away" },
-                      ]
-                    : selectedPerson === "dev"
-                      ? [
-                          { ok: true, text: "Close to the kitchen" },
-                          { ok: true, text: "A room with elbow space" },
-                          { ok: true, text: "People nearby, ideally always" },
-                        ]
-                      : [
-                          { ok: true, text: "Far from the kitchen" },
-                          { ok: true, text: "Chairman Meow nearby" },
-                          { ok: true, text: "Records in the living room" },
-                          { ok: false, text: "Cannot be beside a light sleeper" },
-                        ]
-                ).map((check) => (
-                  <div className={`need ${check.ok ? "need--good" : "need--bad"}`} key={check.text}>
-                    <span>{check.ok ? "✓" : "×"}</span><p>{check.text}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="scribble">tap a room<br />or drag them over</div>
+          <div className="case-tab">ROOMMATE FILE</div>
+          <div className="character-sheet">
+            <div className="character-heading">
+              <CharacterPortrait characterId={selectedCharacter} />
+              <div><span>{selectedCharacterData.role}</span><h2>{selectedCharacterData.name}</h2><p>{selectedCharacterData.personality}</p></div>
             </div>
-          ) : (
-            <div className="watching-note">
-              <span>LIVE FROM 4B</span>
-              <h2>Everybody is pretending this is normal.</h2>
-              <p>Watch closely. The arrangement tells its own story.</p>
+            <blockquote>“{selectedCharacterData.quote}”</blockquote>
+            <div className="preference-key"><span><i>N</i>Need</span><span><i>W</i>Want · 2</span><span><i>L</i>Like · 1</span></div>
+            <div className="preference-list">
+              {selectedPreferences.map((preference) => (
+                <div className={`preference preference--${preference.priority}`} key={preference.id}>
+                  <b>{preference.priority}</b><span>{preference.icon}</span><p>{preference.label}</p>
+                  {debugFlags.harmonyWeights && preferenceWeight(preference) && <em>{preferenceWeight(preference)} pt</em>}
+                </div>
+              ))}
+            </div>
+            <div className="sheet-note">
+              <span>{PROP_MARKS[selectedCharacter]}</span>
+              <p><small>MOVING WITH</small>{selectedCharacterData.prop}</p>
+            </div>
+            <p className="inspector-tip">Needs are required. Wants and Likes improve Harmony.</p>
+          </div>
+
+          {selectedRoom && (
+            <div className="selected-room-note">
+              <small>SELECTED ROOM</small><strong>{selectedRoom.name}</strong><span>{selectedRoom.description}</span>
             </div>
           )}
         </aside>
       </section>
 
-      <section className="people-dock" aria-label="Potential flatmates">
-        <div className="dock-label"><span>FLATMATES</span><small>pick someone up</small></div>
-        {(["tara", "dev", "kabir"] as PersonId[]).map((id) => {
-          const state = satisfaction(layout, id);
-          const selected = picked?.type === "person" && picked.id === id;
-          return (
-            <button
-              type="button"
-              className={`person-card person-card--${id} ${selected ? "is-picked" : ""}`}
-              key={id}
-              onPointerDown={(event) => beginPick(event, { type: "person", id })}
-              aria-label={`Pick up ${PEOPLE[id].name}. ${layout.people[id] ? `Currently in room ${layout.people[id]?.toUpperCase()}.` : "Not yet assigned."}`}
-            >
-              <span className="person-card__portrait"><Portrait person={id} /></span>
-              <span className="person-card__copy">
-                <strong>{PEOPLE[id].name}</strong>
-                <small>{PEOPLE[id].role}</small>
-                <i>{layout.people[id] ? `ROOM ${layout.people[id]?.toUpperCase()}` : "IN THE HALL"}</i>
-              </span>
-              <span className={`person-card__mood mood-dot--${state.mood}`}>{state.face}</span>
-            </button>
-          );
-        })}
-        <div className="object-drawer">
-          <span>MOVEABLE THINGS</span>
-          <div className="object-drawer__items">
-            <button
-              type="button"
-              className={picked?.type === "object" && picked.id === "catbed" ? "is-picked" : ""}
-              onPointerDown={(event) => beginPick(event, { type: "object", id: "catbed" })}
-            >
-              🐈 <small>cat bed</small>
-            </button>
-            <button
-              type="button"
-              className={picked?.type === "object" && picked.id === "record" ? "is-picked" : ""}
-              onPointerDown={(event) => beginPick(event, { type: "object", id: "record" })}
-            >
-              ♫ <small>records</small>
-            </button>
-          </div>
+      <section className="roommate-dock" aria-label="Roommates to assign">
+        <div className="dock-intro"><span>ROOMMATES</span><strong>Drag or tap</strong><small>One person per room</small></div>
+        <div className="dock-cards">
+          {level.characterIds.map((characterId) => {
+            const character = CHARACTERS[characterId];
+            const roomId = assignment[characterId];
+            const assignedRoom = roomId ? level.house.rooms.find((item) => item.id === roomId) : null;
+            return (
+              <button
+                type="button"
+                key={characterId}
+                className={`roommate-card roommate-card--${character.color} ${selectedCharacter === characterId ? "is-selected" : ""}`}
+                onPointerDown={(event) => beginDrag(event, characterId)}
+                onClick={() => { setSelectedCharacter(characterId); setSelectedRoomId(null); }}
+                aria-label={`Select ${character.name}. ${assignedRoom ? `Assigned to ${assignedRoom.name}.` : "Not assigned."}`}
+              >
+                <CharacterPortrait characterId={characterId} />
+                <span><strong>{character.name}</strong><small>{character.role}</small><i>{assignedRoom?.name ?? "waiting with boxes"}</i></span>
+                <b>{roomId ? "✓" : "+"}</b>
+              </button>
+            );
+          })}
         </div>
       </section>
 
       {drag?.moved && (
         <div className="drag-ghost" style={{ transform: `translate3d(${drag.x}px, ${drag.y}px, 0)` }} aria-hidden="true">
-          {drag.item.type === "person" ? <Portrait person={drag.item.id} /> : <span>{drag.item.id === "catbed" ? "🐈" : "♫"}</span>}
+          <CharacterPortrait characterId={drag.characterId} />
+          <span>{CHARACTERS[drag.characterId].name}</span>
         </div>
+      )}
+
+      {simulation?.finished && (
+        <div className="modal-backdrop">
+          <section className={`result-card ${simulation.result.passed ? "is-success" : "is-failure"}`} role="dialog" aria-modal="true" aria-labelledby="result-title">
+            <span className="result-kicker">AFTER MOVING IN</span>
+            <div className="result-house" aria-hidden="true"><i /><b /></div>
+            {level.showHarmony && simulation.result.hardValid && <strong className="result-score">{simulation.result.harmony}% <span>HOUSEHOLD HARMONY</span></strong>}
+            <h2 id="result-title">{resultTitle}</h2>
+            {!simulation.result.hardValid ? (
+              <p className="need-failure"><b>{simulation.result.failedNeeds[0]?.icon}</b>{CHARACTERS[simulation.result.failedNeeds[0]?.characterId ?? level.characterIds[0]].name} needs {simulation.result.failedNeeds[0]?.label.toLowerCase()}.</p>
+            ) : simulation.result.harmony < level.authoredMaxHarmony ? (
+              <p>{level.number === 2 ? "Every Need is met. Continue now, or rearrange for a happier home." : "Every Need is met, but this is not the best use of the rooms."}</p>
+            ) : (
+              <p>{level.number === 5 ? "No 100% solution exists. This is the best possible home." : "The rooms fit the people. The tiny life of the house can begin."}</p>
+            )}
+            <div className="result-people">
+              {level.characterIds.map((id) => <span key={id}><CharacterPortrait characterId={id} small /><i>{simulation.result.hardValid ? "☺" : simulation.result.failedNeeds.some((item) => item.characterId === id) ? "—" : "·"}</i></span>)}
+            </div>
+            <div className="result-actions">
+              {simulation.result.passed && <button className="primary-action" type="button" onClick={continueAfterResult}>{levelIndex === GAME_LEVELS.length - 1 ? "Chapter map" : "Continue"}</button>}
+              <button type="button" onClick={() => setSimulation(null)}>{simulation.result.passed ? "Rearrange" : "Try another arrangement"}</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {mapOpen && (
+        <div className="modal-backdrop">
+          <section className="level-map" role="dialog" aria-modal="true" aria-labelledby="map-title">
+            <button className="map-close" type="button" onClick={() => setMapOpen(false)} aria-label="Close level map">×</button>
+            <span>CHAPTER 1 · MOVING DAY</span>
+            <h2 id="map-title">Six small houses. Five large personalities.</h2>
+            <p>Complete each move to open the next front door.</p>
+            <div className="map-path"><i /><i /><i /></div>
+            <div className="map-levels">
+              {GAME_LEVELS.map((item, index) => {
+                const unlocked = item.number <= maxUnlocked;
+                return (
+                  <button type="button" key={item.id} disabled={!unlocked} className={`${item.number === level.number ? "is-current" : ""} ${completed[item.number] !== undefined ? "is-complete" : ""}`} onClick={() => changeLevel(index)}>
+                    <span className={`map-house map-house--${(index % 3) + 1}`}><i /><b>{unlocked ? item.number : "·"}</b></span>
+                    <strong>{item.title}</strong><small>{completed[item.number] !== undefined ? `${completed[item.number]}% best` : unlocked ? item.target : "Locked"}</small>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {debugOpen && process.env.NODE_ENV !== "production" && (
+        <aside className="debug-drawer">
+          <button className="debug-close" type="button" onClick={() => setDebugOpen(false)}>×</button>
+          <span>DEVELOPER MODE</span><h2>{level.number.toString().padStart(2, "0")} — {level.title}</h2>
+          <dl><div><dt>Permutations</dt><dd>{solverReport.permutations}</dd></div><div><dt>Hard-valid</dt><dd>{solverReport.hardValidCount}</dd></div><div><dt>Maximum</dt><dd>{solverReport.maxHarmony}%</dd></div><div><dt>Perfect</dt><dd>{solverReport.perfectCount}</dd></div></dl>
+          <p className={solverReport.warnings.length ? "has-warning" : "is-valid"}>{solverReport.warnings.length ? solverReport.warnings.join(" ") : "STATUS: VALID"}</p>
+          <div className="debug-actions">
+            {([
+              ["roomFeatures", "SHOW ROOM FEATURES"],
+              ["characterNeeds", "SHOW CHARACTER NEEDS"],
+              ["harmonyWeights", "SHOW HARMONY WEIGHTS"],
+              ["solutions", "SHOW ALL VALID SOLUTIONS"],
+            ] as [keyof DebugFlags, string][]).map(([key, label]) => <button type="button" key={key} className={debugFlags[key] ? "is-on" : ""} onClick={() => setDebugFlags((current) => ({ ...current, [key]: !current[key] }))}>{label}</button>)}
+            <button type="button" onClick={() => setAssignment(makeAssignment(level, level.intendedAssignment))}>AUTO-SOLVE</button>
+            <button type="button" onClick={reset}>RESET LEVEL</button>
+            <button type="button" onClick={() => beginSimulation(makeAssignment(level, level.intendedAssignment))}>PLAY SUCCESS SIMULATION</button>
+            <button type="button" onClick={() => beginSimulation(findInvalidAssignment(level))}>PLAY FAILURE SIMULATION</button>
+          </div>
+          {debugFlags.solutions && <div className="debug-solutions">{solverReport.solutions.map((solution, index) => <p key={index}><b>{solution.result.harmony}%</b>{level.characterIds.map((id) => `${CHARACTERS[id].name} → ${level.house.rooms.find((room) => room.id === solution.assignment[id])?.name}`).join(" · ")}</p>)}</div>}
+        </aside>
       )}
     </main>
   );

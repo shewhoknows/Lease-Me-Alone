@@ -16,36 +16,44 @@ async function render() {
   );
 }
 
-test("server-renders the Flatmates puzzle shell", async () => {
+test("server-renders the Lease Me Alone puzzle shell", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>Flatmates — The Night Owl Problem<\/title>/i);
-  assert.match(html, /The Night Owl Problem/);
+  assert.match(html, /<title>Lease Me Alone — Six-Level Vertical Slice<\/title>/i);
+  assert.match(html, /Lease Me Alone/);
+  assert.match(html, /First Night/);
   assert.match(html, /HOUSEHOLD GOAL/);
-  assert.match(html, /Tara/);
-  assert.match(html, /Kabir/);
+  assert.match(html, /Maya/);
+  assert.match(html, /Dev/);
   assert.match(html, /MOVE IN/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|react-loading-skeleton/i);
 });
 
 test("keeps finished product metadata and removes starter preview code", async () => {
-  const [page, layout, packageJson, concept] = await Promise.all([
+  const [page, layout, packageJson, concept, levelPack, gameData] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../docs/FLATMATES_GAME_CONCEPT.md", import.meta.url), "utf8"),
+    readFile(new URL("../docs/LEASE_ME_ALONE_VERTICAL_SLICE.md", import.meta.url), "utf8"),
+    readFile(new URL("../lib/game/index.ts", import.meta.url), "utf8"),
   ]);
 
-  assert.match(page, /buildSimulation/);
-  assert.match(page, /Open Flat 4B chat/);
-  assert.match(layout, /Flatmates — The Night Owl Problem/);
+  assert.match(page, /buildFailureEvents/);
+  assert.match(page, /solveLevel/);
+  assert.match(layout, /Lease Me Alone — Six-Level Vertical Slice/);
   assert.match(layout, /\/og\.png/);
   assert.match(packageJson, /"name": "lease-me-alone"/);
   assert.match(concept, /^# Game Concept: FLATMATES/m);
   assert.match(concept, /Finding people you can live with is the puzzle\./);
+  assert.match(levelPack, /# Lease Me Alone: Vertical Slice Reference/);
+  assert.match(levelPack, /Level 6: Housewarming/);
+  assert.match(gameData, /export const GAME_LEVELS/);
+  assert.match(gameData, /export function evaluateAssignment/);
+  assert.match(gameData, /export function solveLevel/);
   await access(new URL("../public/og.png", import.meta.url));
   await assert.rejects(access(new URL("../app/_sites-preview", templateRoot)));
 });
