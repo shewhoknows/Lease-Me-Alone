@@ -555,3 +555,330 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
 }
+
+/* Exact reference direction: watercolor screens on warm paper. */
+.reference-ui {
+  --paper: #f7f0e2;
+  --paper-light: #fffaf0;
+  --paper-dark: #e8dfcf;
+  --ink: #303733;
+  --ink-soft: #6f746f;
+  background: #f4eddf;
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+.reference-ui::after {
+  opacity: .065;
+  background:
+    repeating-linear-gradient(88deg, transparent 0 6px, rgba(91,74,55,.12) 7px, transparent 8px 15px),
+    repeating-linear-gradient(3deg, transparent 0 10px, rgba(91,74,55,.08) 11px, transparent 12px 22px);
+}
+
+.reference-ui .topbar {
+  grid-template-columns: 44px 220px minmax(260px, 1fr) 112px 154px;
+  min-height: 76px;
+  padding: 10px 20px;
+  background: rgba(255,250,241,.96);
+  border-bottom-color: rgba(91,76,58,.16);
+  box-shadow: 0 3px 12px rgba(70,55,39,.06);
+}
+
+.reference-ui .brand-lockup { border: 0; padding: 0; }
+.reference-ui .brand-lockup strong {
+  font-family: var(--font-hand), Georgia, serif;
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: .01em;
+  transform: rotate(-1deg);
+}
+.reference-ui .brand-lockup span { font: 600 6px/1.3 var(--font-geist-sans), sans-serif; letter-spacing: .01em; }
+.reference-ui .level-heading > span { color: #6d756e; font-size: 7px; }
+.reference-ui .level-heading h1 { font-family: var(--font-hand), Georgia, serif; font-size: 27px; font-weight: 400; }
+.reference-ui .icon-button, .reference-ui .text-button { border-color: rgba(74,65,55,.16); background: #f8f1e7; box-shadow: none; }
+.reference-ui .text-button { color: #4d554f; }
+
+.reference-ui .game-layout {
+  grid-template-columns: minmax(690px, 1fr) 320px;
+  gap: 18px;
+  padding: 12px 18px 10px;
+  background: rgba(255,252,245,.38);
+}
+
+.reference-ui .objective-strip {
+  min-height: 43px;
+  border-radius: 8px 8px 0 0;
+  background: rgba(251,247,237,.94);
+  border-color: rgba(84,70,54,.14);
+  box-shadow: none;
+  transform: none;
+}
+.reference-ui .objective-strip > div:first-child span { color: #4b514d; font-size: 8px; }
+.reference-ui .objective-strip > div:first-child strong { font-family: var(--font-hand), Georgia, serif; font-size: 13px; font-weight: 400; }
+
+.reference-ui .house-scroll {
+  padding: 9px 13px 8px;
+  border: 1px solid rgba(88,72,55,.14);
+  border-top: 0;
+  border-radius: 0 0 9px 9px;
+  background: rgba(255,251,243,.82);
+}
+.reference-ui .house-shadow { display: none; }
+.reference-ui .house-plan {
+  width: auto;
+  height: 100%;
+  aspect-ratio: 3 / 2;
+  max-width: 100%;
+  min-height: 0;
+  max-height: 580px;
+  display: block;
+  overflow: hidden;
+  border: 1px solid rgba(62,57,49,.26);
+  border-radius: 6px;
+  background: #f5eddf;
+  box-shadow: 0 3px 9px rgba(57,45,34,.12);
+  transform: none;
+  isolation: isolate;
+}
+.reference-ui .house-watercolor {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: saturate(.9) contrast(.96) brightness(1.035);
+  pointer-events: none;
+}
+.reference-ui .bedroom,
+.reference-ui .common-space {
+  position: absolute;
+  z-index: 2;
+  overflow: visible;
+  background: rgba(255,255,255,.06);
+  box-shadow: inset 0 0 0 1px rgba(54,50,44,.14);
+}
+.reference-ui .house-plan .bedroom--slot-1 { left: 8.2%; top: 5.5%; width: 24.5%; height: 37%; }
+.reference-ui .house-plan .bedroom--slot-2 { right: 8.2%; top: 5.5%; width: 25.2%; height: 37%; }
+.reference-ui .house-plan .bedroom--slot-3 { left: 8.2%; bottom: 6.7%; width: 24.7%; height: 50%; }
+.reference-ui .house-plan .bedroom--slot-4 { right: 8.2%; bottom: 6.7%; width: 25.2%; height: 32.5%; }
+.reference-ui .house-plan .common-space { left: 33%; top: 5.5%; width: 33.5%; height: 87.8%; pointer-events: none; }
+.reference-ui .house-plan--2 .bedroom--slot-1,
+.reference-ui .house-plan--2 .bedroom--slot-2 { top: 5.5%; bottom: auto; height: 37%; }
+.reference-ui .house-plan--3 .bedroom--slot-3 { bottom: 6.7%; height: 50%; }
+.reference-ui .bedroom::after { display: none; }
+.reference-ui .bedroom__wash { inset: 4px; border-radius: 4px; background: rgba(255,255,255,.04); }
+.reference-ui .bedroom:hover .bedroom__wash { background: rgba(255,246,211,.18); }
+.reference-ui .bedroom__number {
+  position: absolute;
+  z-index: 12;
+  left: 50%;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(73,65,56,.15);
+  border-radius: 50%;
+  background: rgba(255,251,242,.9);
+  color: #676c67;
+  font-family: var(--font-hand), Georgia, serif;
+  font-size: 15px;
+  transform: translate(-50%,-50%);
+  box-shadow: 0 2px 5px rgba(62,49,36,.11);
+}
+.reference-ui .bedroom__title {
+  top: 7px;
+  left: 8px;
+  padding: 4px 6px;
+  border-radius: 3px;
+  background: rgba(255,250,241,.78);
+  text-shadow: none;
+}
+.reference-ui .bedroom__title strong { font-family: var(--font-hand), Georgia, serif; font-size: 12px; font-weight: 400; }
+.reference-ui .bedroom__title small { display: none; }
+.reference-ui .bedroom.is-selected { box-shadow: inset 0 0 0 4px rgba(255,255,255,.9), inset 0 0 0 7px rgba(224,122,104,.67); }
+.reference-ui .bedroom.is-selected .bedroom__number { background: #ef9a89; color: white; }
+.reference-ui .house-plan.is-dragging .bedroom { box-shadow: inset 0 0 0 3px rgba(255,255,255,.78), inset 0 0 0 5px rgba(224,122,104,.25); }
+.reference-ui .house-plan.is-dragging .bedroom:hover { box-shadow: inset 0 0 0 5px #fff, inset 0 0 0 8px #e88f7c; }
+.reference-ui .common-space { background: transparent; }
+.reference-ui .common-space::after { display: none; }
+.reference-ui .common-space__label { padding: 4px 7px; border-radius: 3px; background: rgba(255,250,241,.72); color: #73766f; }
+.reference-ui .front-door { width: 30%; height: 7%; border: 0; background: rgba(255,250,241,.75); color: #555b56; }
+
+.reference-ui .room-feature-card {
+  top: 42px;
+  left: 50%;
+  width: min(190px, calc(100% - 16px));
+  padding: 11px;
+  border: 1px solid rgba(66,57,49,.16);
+  border-radius: 7px;
+  background: rgba(255,252,245,.98);
+  box-shadow: 0 7px 22px rgba(56,43,31,.18);
+  transform: translateX(-50%);
+}
+.reference-ui .room-feature-card > b { font: 400 9px/1.3 var(--font-hand), Georgia, serif; }
+.reference-ui .room-feature-card > i { font-size: 7px; }
+
+.reference-ui .roommate-token {
+  left: 50%;
+  top: 51%;
+  width: 72px;
+  height: 76px;
+  padding: 4px;
+  border: 2px solid white;
+  border-radius: 6px;
+  background: #fffaf0;
+  box-shadow: 0 5px 10px rgba(50,38,29,.18);
+  transform: translate(-50%,-50%);
+}
+.reference-ui .roommate-token > b { bottom: -2px; font-size: 6px; }
+.reference-ui .roommate-token .avatar { margin: 0 auto; }
+
+.reference-ui .case-panel {
+  margin: 0;
+  border-radius: 8px;
+  background: #fffaf0;
+  box-shadow: none;
+  transform: none;
+}
+.reference-ui .case-panel::before { opacity: .08; }
+.reference-ui .case-tab {
+  left: 0;
+  right: 0;
+  height: 27px;
+  padding: 8px 13px;
+  background: transparent;
+  color: #3d443f;
+  font-size: 7px;
+  border-bottom: 1px solid rgba(73,61,49,.12);
+}
+.reference-ui .character-heading { padding-top: 6px; }
+.reference-ui .character-heading h2 { font-family: var(--font-hand), Georgia, serif; font-size: 30px; font-weight: 400; }
+.reference-ui .character-sheet blockquote { border-left-color: #e38b78; background: #fbf4e8; }
+.reference-ui .preference--need > b { background: #e07867; }
+.reference-ui .preference--want > b { background: #84a17a; }
+.reference-ui .preference--like > b { background: #a98f77; }
+
+.reference-ui .board-controls { grid-template-columns: 150px 1fr 190px; }
+.reference-ui .move-in-button { background: #aac68f; color: #30412f; box-shadow: 0 3px #7f9f70; }
+.reference-ui .move-in-button:disabled { background: #d8d3c8; color: #79756e; box-shadow: 0 3px #b7b0a5; }
+
+.reference-ui .roommate-dock {
+  min-height: 128px;
+  padding: 10px 18px 12px;
+  border-top-color: rgba(81,66,51,.13);
+  background: rgba(255,250,241,.97);
+}
+.reference-ui .dock-intro strong { font-family: var(--font-hand), Georgia, serif; font-size: 18px; font-weight: 400; }
+.reference-ui .roommate-card {
+  height: 106px;
+  border-radius: 7px;
+  background: #fffaf0;
+  box-shadow: none;
+}
+.reference-ui .roommate-card::before { display: none; }
+.reference-ui .roommate-card.is-selected { box-shadow: 0 0 0 3px #e78c79; transform: translateY(-2px); }
+.reference-ui .roommate-card > span:nth-of-type(2) strong { font-family: var(--font-hand), Georgia, serif; font-size: 18px; font-weight: 400; }
+
+.reference-ui .avatar {
+  width: 76px;
+  height: 90px;
+  overflow: hidden;
+  background-image: var(--portrait-image);
+  background-size: cover;
+  background-position: center 22%;
+  background-repeat: no-repeat;
+  border-radius: 5px;
+}
+.reference-ui .avatar__art { position: absolute; inset: 0; }
+.reference-ui .avatar--maya { --portrait-image: url('/art/characters/maya.png'); }
+.reference-ui .avatar--dev { --portrait-image: url('/art/characters/dev.png'); }
+.reference-ui .avatar--tara { --portrait-image: url('/art/characters/tara.png'); }
+.reference-ui .avatar--finn { --portrait-image: url('/art/characters/finn.png'); }
+.reference-ui .avatar--kabir { --portrait-image: url('/art/characters/kabir.png'); }
+.reference-ui .avatar--small { width: 51px; height: 62px; margin: 0; transform: none; }
+
+.reference-ui .simulation-layer {
+  z-index: 40;
+  overflow: hidden;
+  background: #f5eddf;
+  box-shadow: none;
+}
+.reference-ui .simulation-house-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: saturate(.92) contrast(.96) brightness(1.02);
+}
+.reference-ui .simulation-residents {
+  position: absolute;
+  inset: 0;
+}
+.reference-ui .simulation-resident { position: absolute; z-index: 2; width: 58px; height: 70px; }
+.reference-ui .simulation-resident--slot-1 { left: 14%; top: 24%; }
+.reference-ui .simulation-resident--slot-2 { right: 14%; top: 24%; }
+.reference-ui .simulation-resident--slot-3 { left: 14%; bottom: 19%; }
+.reference-ui .simulation-resident--slot-4 { right: 14%; bottom: 19%; }
+.reference-ui .simulation-residents .avatar { width: 58px; height: 70px; filter: drop-shadow(0 3px 3px rgba(50,38,29,.18)); }
+.reference-ui .simulation-clock { top: auto; bottom: 7px; width: calc(100% - 18px); min-width: 0; border-radius: 8px; }
+.reference-ui .simulation-caption { bottom: 55px; width: min(540px, 78%); }
+
+.reference-ui .modal-backdrop { background: rgba(246,239,226,.86); backdrop-filter: blur(3px); }
+.reference-ui .result-card {
+  width: min(530px, 94vw);
+  padding: 36px 45px 28px 62px;
+  border: 0;
+  border-radius: 2px;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 28px, rgba(117,136,124,.14) 29px, transparent 30px),
+    #fffaf0;
+  box-shadow: 0 12px 45px rgba(55,43,33,.22);
+  transform: rotate(-.25deg);
+}
+.reference-ui .result-card::before {
+  inset: 0 auto 0 24px;
+  width: 17px;
+  border: 0;
+  background: radial-gradient(circle, #f4eddf 0 5px, #c9bfae 6px, transparent 7px) center 16px / 17px 30px repeat-y;
+}
+.reference-ui .result-kicker { color: #646a65; }
+.reference-ui .result-paperclip { position: absolute; right: 25px; top: 14px; color: #9d9486; font: 42px/1 Georgia, serif; transform: rotate(17deg); }
+.reference-ui .result-card h2 { font-family: var(--font-hand), Georgia, serif; font-size: 31px; font-weight: 400; }
+.reference-ui .result-list { position: relative; display: flex; flex-direction: column; margin: 15px 0 17px; border-top: 1px solid rgba(70,60,51,.13); }
+.reference-ui .result-list > div { min-height: 39px; display: grid; grid-template-columns: 34px 72px 25px 1fr; align-items: center; gap: 5px; border-bottom: 1px solid rgba(70,60,51,.12); text-align: left; }
+.reference-ui .result-list .avatar { width: 31px; height: 35px; }
+.reference-ui .result-list b { font-size: 7px; text-transform: uppercase; }
+.reference-ui .result-list i { color: #6e9d69; font: normal 15px Georgia, serif; }
+.reference-ui .result-list i.result-tone--mixed { color: #c09148; }
+.reference-ui .result-list i.result-tone--bad { color: #ce6b61; }
+.reference-ui .result-list span { color: #77746d; font-size: 9px; }
+.reference-ui .result-actions .primary-action { background: #bad09d; color: #334530; box-shadow: 0 2px #91ad7c; }
+.reference-ui .result-actions button:not(.primary-action) { min-width: 120px; border-radius: 4px; background: #d9cbe1; }
+
+.reference-ui .level-map {
+  border: 0;
+  background:
+    radial-gradient(circle at 49% 55%, rgba(195,220,220,.88) 0 9%, transparent 10%),
+    linear-gradient(rgba(250,247,239,.54), rgba(242,236,220,.42)),
+    #dce9da;
+}
+.reference-ui .level-map > h2 { font-family: var(--font-hand), Georgia, serif; font-weight: 400; }
+
+@media (max-width: 1160px) {
+  .reference-ui .topbar { grid-template-columns: 44px 175px 1fr 100px 145px; }
+  .reference-ui .game-layout { grid-template-columns: minmax(590px, 1fr) 275px; }
+}
+
+@media (max-width: 940px) {
+  .reference-ui .game-layout { grid-template-columns: 1fr; }
+  .reference-ui .case-panel { min-height: 320px; }
+}
+
+@media (max-width: 700px) {
+  .reference-ui .topbar { grid-template-columns: 44px 1fr 92px; }
+  .reference-ui .house-plan { width: 720px; height: 480px; min-height: 480px; max-height: none; }
+  .reference-ui .house-scroll { place-items: initial; }
+  .reference-ui .brand-lockup { display: none; }
+}

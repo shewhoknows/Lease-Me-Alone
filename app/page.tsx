@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import {
   CHARACTERS,
   GAME_LEVELS,
@@ -63,12 +64,7 @@ const DEFAULT_DEBUG: DebugFlags = {
 function CharacterPortrait({ characterId, small = false }: { characterId: CharacterId; small?: boolean }) {
   return (
     <span className={`avatar avatar--${characterId} ${small ? "avatar--small" : ""}`} aria-hidden="true">
-      <span className="avatar__body" />
-      <span className="avatar__neck" />
-      <span className="avatar__head"><i className="avatar__face" /></span>
-      <span className="avatar__hair" />
-      <span className="avatar__detail" />
-      <span className="avatar__prop">{PROP_MARKS[characterId]}</span>
+      <span className="avatar__art" />
     </span>
   );
 }
@@ -94,6 +90,22 @@ function roomFeatureText(feature: RoomFeature, value: Room["features"][RoomFeatu
 
 function isFeatureShown(feature: RoomFeature, value: Room["features"][RoomFeature]) {
   return value !== false && value !== undefined;
+}
+
+function preferenceIsMet(level: GameLevel, assignment: Assignment, preference: Preference) {
+  const roomId = assignment[preference.characterId];
+  const room = level.house.rooms.find((item) => item.id === roomId);
+  return room?.features[preference.feature] === preference.value;
+}
+
+function residentFeedback(level: GameLevel, assignment: Assignment, characterId: CharacterId, result: HarmonyResult) {
+  const failedNeed = result.failedNeeds.find((item) => item.characterId === characterId);
+  if (failedNeed) return { icon: "×", label: failedNeed.label, tone: "bad" };
+  const unmetSoft = level.preferences.find(
+    (item) => item.characterId === characterId && item.priority !== "need" && !preferenceIsMet(level, assignment, item),
+  );
+  if (unmetSoft) return { icon: "·", label: unmetSoft.label, tone: "mixed" };
+  return { icon: "☺", label: "Settled in", tone: "good" };
 }
 
 function buildFailureEvents(level: GameLevel, result: HarmonyResult): SimulationEvent[] {
@@ -371,6 +383,11 @@ export default function Home() {
   };
 
   const selectedCharacterData = CHARACTERS[selectedCharacter];
+  const houseArt = level.house.rooms.length === 2
+    ? "/art/lease-me-alone-topdown-2.png"
+    : level.house.rooms.length === 3
+      ? "/art/lease-me-alone-topdown-3.png"
+      : "/art/lease-me-alone-topdown.png";
   const resultTitle = simulation
     ? !simulation.result.hardValid
       ? `${CHARACTERS[simulation.result.failedNeeds[0]?.characterId ?? level.characterIds[0]].name} cannot settle here.`
@@ -380,10 +397,10 @@ export default function Home() {
     : "";
 
   return (
-    <main className="game-shell">
+    <main className="game-shell reference-ui">
       <header className="topbar">
-        <button className="icon-button" type="button" onClick={() => setMapOpen(true)} aria-label="Open level map">←</button>
-        <div className="brand-lockup"><strong>Lease Me Alone</strong><span>a puzzle about living with people</span></div>
+        <button className="icon-button" type="button" onClick={() => setMapOpen(true)} aria-label="Open level map">‹</button>
+        <div className="brand-lockup"><strong>Lease Me Alone</strong><span>a game about horrible people living in the same house</span></div>
         <div
           className="level-heading"
           onPointerDown={() => {
@@ -400,7 +417,7 @@ export default function Home() {
           {GAME_LEVELS.map((item) => <i key={item.id} className={`${item.number === level.number ? "is-current" : ""} ${completed[item.number] !== undefined ? "is-complete" : ""}`} />)}
         </div>
         <div className="top-actions">
-          <button className="text-button" type="button" onClick={() => setHintIndex((index) => (index + 1) % level.hints.length)}>✦ Hint</button>
+          <button className="text-button" type="button" onClick={() => setHintIndex((index) => (index + 1) % level.hints.length)}>☀ Hint</button>
           <button className="icon-button" type="button" onClick={() => setSoundOn((value) => !value)} aria-label={soundOn ? "Mute sound" : "Turn sound on"}>{soundOn ? "♪" : "×"}</button>
         </div>
       </header>
@@ -420,7 +437,8 @@ export default function Home() {
 
           <div className="house-scroll">
             <div className="house-shadow" />
-            <div className={`house-plan house-plan--${level.house.rooms.length} ${drag?.moved ? "is-dragging" : ""} ${simulation ? "is-simulating" : ""}`}>
+            <div className={`house-plan house-plan--${level.house.rooms.length} ${level.house.rooms.length === 2 ? "house-plan--sparse" : ""} ${drag?.moved ? "is-dragging" : ""} ${simulation ? "is-simulating" : ""}`}>
+              <Image className="house-watercolor" src={houseArt} alt="" fill sizes="(max-width: 940px) 760px, 70vw" priority />
               {level.house.rooms.map((room, index) => {
                 const occupant = level.characterIds.find((id) => assignment[id] === room.id);
                 const showFeatures = selectedRoomId === room.id || debugFlags.roomFeatures;
@@ -439,17 +457,8 @@ export default function Home() {
                     aria-label={`${room.name}. ${room.description}${occupant ? ` Occupied by ${CHARACTERS[occupant].name}.` : " Empty."}`}
                   >
                     <span className="bedroom__wash" />
+                    <span className="bedroom__number">{index + 1}</span>
                     <span className="bedroom__title"><small>ROOM {index + 1}</small><strong>{room.name}</strong></span>
-                    <span className="room-window"><i /></span>
-                    {(room.features.daylight === "strong" || room.features.morningSun) && <span className="room-sunbeam" />}
-                    <span className="room-bed"><i /><b /></span>
-                    <span className="room-rug" />
-                    {room.features.desk && <span className="room-desk"><i>▤</i></span>}
-                    {room.features.floorSpace && <span className="room-floor">clear floor</span>}
-                    {room.features.balcony && <span className="room-balcony"><i>♧</i><b /></span>}
-                    {room.features.guitarSpace && <span className="room-guitar">♪</span>}
-                    {room.features.kitchenClose && <span className="room-kitchen-arrow">kitchen →</span>}
-                    {room.features.farFromCommonSpace && <span className="room-distance">quiet end</span>}
 
                     {occupant && (
                       <span className={`roommate-token ${activeActor ? "is-active" : ""}`}>
@@ -473,18 +482,18 @@ export default function Home() {
                 );
               })}
 
-              <div className="common-space" aria-label="Shared living room and kitchen">
-                <span className="common-space__label">SHARED SPACE</span>
-                <span className="sofa"><i /><i /></span>
-                <span className="coffee-table"><i /></span>
-                <span className="dining-table"><i /><i /><i /><i /></span>
-                <span className="kitchen-unit"><i /><i /><i /></span>
-                <span className="common-plant">♧</span>
-                <span className="front-door">ENTRANCE</span>
-              </div>
+              <div className="common-space" aria-label="Shared living room and kitchen"><span className="common-space__label">SHARED SPACE</span><span className="front-door">ENTRANCE</span></div>
 
               {simulation && currentEvent && (
                 <div className={`simulation-layer simulation-layer--${currentEvent.tone ?? "warm"}`} aria-live="polite">
+                  <Image className="simulation-house-art" src="/art/lease-me-alone-cutaway.png" alt="" fill sizes="(max-width: 940px) 760px, 70vw" />
+                  <div className="simulation-residents" aria-hidden="true">
+                    {level.characterIds.map((characterId) => {
+                      const roomId = assignment[characterId];
+                      const roomIndex = Math.max(0, level.house.rooms.findIndex((room) => room.id === roomId));
+                      return <span className={`simulation-resident simulation-resident--slot-${roomIndex + 1}`} key={characterId}><CharacterPortrait characterId={characterId} small /></span>;
+                    })}
+                  </div>
                   <div className="simulation-clock"><span>{currentEvent.time}</span><div>{simulation.events.map((_, index) => <i key={index} className={index <= simulation.step ? "is-past" : ""} />)}</div><button type="button" onClick={() => setSimulation((current) => current ? { ...current, finished: true } : null)}>Skip</button></div>
                   <div className="simulation-caption">
                     {currentEvent.characterId && <CharacterPortrait characterId={currentEvent.characterId} small />}
@@ -518,7 +527,7 @@ export default function Home() {
         </section>
 
         <aside className="case-panel">
-          <div className="case-tab">ROOMMATE FILE</div>
+          <div className="case-tab">ROOMMATE INFO & PREFERENCES</div>
           <div className="character-sheet">
             <div className="character-heading">
               <CharacterPortrait characterId={selectedCharacter} />
@@ -584,8 +593,8 @@ export default function Home() {
       {simulation?.finished && (
         <div className="modal-backdrop">
           <section className={`result-card ${simulation.result.passed ? "is-success" : "is-failure"}`} role="dialog" aria-modal="true" aria-labelledby="result-title">
-            <span className="result-kicker">AFTER MOVING IN</span>
-            <div className="result-house" aria-hidden="true"><i /><b /></div>
+            <span className="result-kicker">FEEDBACK AFTER SIMULATION</span>
+            <span className="result-paperclip" aria-hidden="true">⌇</span>
             {level.showHarmony && simulation.result.hardValid && <strong className="result-score">{simulation.result.harmony}% <span>HOUSEHOLD HARMONY</span></strong>}
             <h2 id="result-title">{resultTitle}</h2>
             {!simulation.result.hardValid ? (
@@ -595,8 +604,11 @@ export default function Home() {
             ) : (
               <p>{level.number === 5 ? "No 100% solution exists. This is the best possible home." : "The rooms fit the people. The tiny life of the house can begin."}</p>
             )}
-            <div className="result-people">
-              {level.characterIds.map((id) => <span key={id}><CharacterPortrait characterId={id} small /><i>{simulation.result.hardValid ? "☺" : simulation.result.failedNeeds.some((item) => item.characterId === id) ? "—" : "·"}</i></span>)}
+            <div className="result-list">
+              {level.characterIds.map((id) => {
+                const feedback = residentFeedback(level, assignment, id, simulation.result);
+                return <div key={id}><CharacterPortrait characterId={id} small /><b>{CHARACTERS[id].name}</b><i className={`result-tone--${feedback.tone}`}>{feedback.icon}</i><span>{feedback.label}</span></div>;
+              })}
             </div>
             <div className="result-actions">
               {simulation.result.passed && <button className="primary-action" type="button" onClick={continueAfterResult}>{levelIndex === GAME_LEVELS.length - 1 ? "Chapter map" : "Continue"}</button>}
