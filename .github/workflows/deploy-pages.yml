@@ -28,7 +28,7 @@ jobs:
           cache: npm
 
       - name: Install packages
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Build the GitHub Pages version
         run: npm run build:pages
