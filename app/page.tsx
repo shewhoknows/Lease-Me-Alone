@@ -56,6 +56,7 @@ type DebugFlags = {
   harmonyWeights: boolean;
   solutions: boolean;
 };
+type InteractionMode = "inspect" | "assign";
 
 const DEFAULT_DEBUG: DebugFlags = {
   roomFeatures: false,
@@ -137,20 +138,41 @@ function isFeatureShown(feature: RoomFeature, value: Room["features"][RoomFeatur
   return value !== false && value !== undefined;
 }
 
-function preferenceIsMet(level: GameLevel, assignment: Assignment, preference: Preference) {
-  const roomId = assignment[preference.characterId];
-  const room = level.house.rooms.find((item) => item.id === roomId);
-  return room?.features[preference.feature] === preference.value;
-}
-
-function residentFeedback(level: GameLevel, assignment: Assignment, characterId: CharacterId, result: HarmonyResult) {
+function residentFeedback(characterId: CharacterId, result: HarmonyResult) {
   const failedNeed = result.failedNeeds.find((item) => item.characterId === characterId);
   if (failedNeed) return { icon: "×", label: failedNeed.label, tone: "bad" };
-  const unmetSoft = level.preferences.find(
-    (item) => item.characterId === characterId && item.priority !== "need" && !preferenceIsMet(level, assignment, item),
-  );
-  if (unmetSoft) return { icon: "·", label: unmetSoft.label, tone: "mixed" };
-  return { icon: "☺", label: "Settled in", tone: "good" };
+  const roomResults = result.softResults.filter((item) => item.preference.characterId === characterId);
+  const earned = roomResults.filter((item) => item.satisfied).reduce((total, item) => total + item.weight, 0);
+  const possible = roomResults.reduce((total, item) => total + item.weight, 0);
+  const unmetSoft = roomResults.find((item) => !item.satisfied)?.preference;
+  if (unmetSoft) return { icon: "·", label: `${earned}/${possible} room points · missed ${unmetSoft.label.toLowerCase()}`, tone: "mixed" };
+  return { icon: "☺", label: possible ? `${earned}/${possible} room points` : "Every Need met", tone: "good" };
+}
+
+function resultConsequence(result: HarmonyResult) {
+  const relationship = result.relationshipResults.find((item) => !item.satisfied);
+  if (relationship) return relationship.rule.consequence;
+  const missed = result.softResults.find((item) => !item.satisfied)?.preference;
+  if (!missed) return null;
+
+  const consequences: Partial<Record<RoomFeature, string>> = {
+    daylight: `${CHARACTERS[missed.characterId].name} puts a plant near the window. The plant files a light complaint.`,
+    morningSun: `${CHARACTERS[missed.characterId].name} sets a sunrise alarm. The room remains deeply committed to night.`,
+    quiet: `${CHARACTERS[missed.characterId].name} tests the walls. The house answers from three rooms away.`,
+    size: `${CHARACTERS[missed.characterId].name} opens one last box. The available floor officially resigns.`,
+    kitchenClose: `${CHARACTERS[missed.characterId].name} starts timing the walk to the fridge.`,
+    desk: `${CHARACTERS[missed.characterId].name} balances a laptop on a box marked “fragile.”`,
+    floorSpace: `${CHARACTERS[missed.characterId].name} unrolls half a mat and calls it a new yoga style.`,
+    balcony: `${CHARACTERS[missed.characterId].name} waves at the balcony from a respectful distance.`,
+    guitarSpace: `${CHARACTERS[missed.characterId].name} stores the spare guitar somewhere legally described as a corner.`,
+    farFromCommonSpace: `${CHARACTERS[missed.characterId].name} joins the household conversation through the wall.`,
+  };
+  return consequences[missed.feature] ?? `${CHARACTERS[missed.characterId].name} starts planning a very polite complaint.`;
+}
+
+function compactEvents(events: SimulationEvent[]) {
+  if (events.length <= 4) return events;
+  return [events[0], events[Math.floor(events.length / 3)], events[Math.floor((events.length * 2) / 3)], events.at(-1)!];
 }
 
 function buildFailureEvents(level: GameLevel, result: HarmonyResult): SimulationEvent[] {
@@ -184,23 +206,18 @@ function buildFailureEvents(level: GameLevel, result: HarmonyResult): Simulation
   ];
 }
 
-function buildNearMissEvents(level: GameLevel, assignment: Assignment, result: HarmonyResult): SimulationEvent[] {
-  if (level.number === 2 && result.hardValid && result.harmony < level.authoredMaxHarmony) {
-    return [
-      { time: "5:30", characterId: "tara", text: "Tara checks the clock, then the dark window. Morning has not reached this room.", reaction: "😐", tone: "comic" },
-      { time: "7:10", characterId: "maya", text: "Maya tries to place five plants in the small room. One waits on the floor.", reaction: "not ideal", tone: "comic" },
-      { time: "7:20", characterId: "dev", text: "Dev reaches the kitchen without complaint. At least somebody is delighted.", reaction: "toast?", tone: "warm" },
-    ];
-  }
-  if (level.number === 6 && result.hardValid && !result.passed) {
-    const finnRoom = assignment.finn;
-    const taraRoom = assignment.tara;
-    return [
-      { time: "10:00", characterId: "finn", text: `Finn starts work in ${level.house.rooms.find((room) => room.id === finnRoom)?.name ?? "his room"}. The blender starts beside the common area.`, reaction: "headphones on", tone: "comic" },
-      { time: "05:31", characterId: "tara", text: `Tara wakes in ${level.house.rooms.find((room) => room.id === taraRoom)?.name ?? "her room"}. The window is still dark.`, reaction: "😐", tone: "tense" },
-    ];
-  }
-  return level.simulation;
+function buildNearMissEvents(level: GameLevel, result: HarmonyResult): SimulationEvent[] {
+  if (result.harmony >= level.authoredMaxHarmony) return compactEvents(level.simulation);
+
+  const consequence = resultConsequence(result);
+  const missedRelationship = result.relationshipResults.find((item) => !item.satisfied);
+  const missedPreference = result.softResults.find((item) => !item.satisfied)?.preference;
+  const characterId = missedRelationship?.rule.characterIds[0] ?? missedPreference?.characterId;
+  return [
+    { time: "0:00", text: "The boxes land. For a moment, the house looks completely reasonable.", tone: "warm" },
+    { time: "0:03", characterId, text: consequence ?? "A small compromise becomes visible.", reaction: "noted", tone: "comic" },
+    { time: "0:06", text: result.passed ? "It works. Nobody should look too closely at the group chat." : "Every room is occupied. The household is not convinced.", tone: result.passed ? "warm" : "tense" },
+  ];
 }
 
 function makeAssignment(level: GameLevel, value: Record<CharacterId, string>): Assignment {
@@ -239,6 +256,7 @@ export default function Home() {
   const [history, setHistory] = useState<Assignment[]>([]);
   const [selectedCharacter, setSelectedCharacter] = useState<CharacterId>(level.characterIds[0]);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [interactionMode, setInteractionMode] = useState<InteractionMode>("inspect");
   const [hintIndex, setHintIndex] = useState(-1);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [simulation, setSimulation] = useState<SimulationState | null>(null);
@@ -254,10 +272,13 @@ export default function Home() {
 
   const placedCount = level.characterIds.filter((id) => Boolean(assignment[id])).length;
   const allPlaced = placedCount === level.characterIds.length;
-  const liveResult = useMemo(() => evaluateAssignment(level, assignment), [assignment, level]);
   const solverReport = useMemo(() => solveLevel(level), [level]);
   const selectedPreferences = useMemo(
     () => level.preferences.filter((item) => item.characterId === selectedCharacter).sort((a, b) => preferenceOrder(a) - preferenceOrder(b)),
+    [level, selectedCharacter],
+  );
+  const selectedRelationships = useMemo(
+    () => level.relationships.filter((item) => item.characterIds.includes(selectedCharacter)),
     [level, selectedCharacter],
   );
   const selectedRoom = selectedRoomId ? level.house.rooms.find((item) => item.id === selectedRoomId) ?? null : null;
@@ -311,6 +332,7 @@ export default function Home() {
     setHistory([]);
     setSelectedCharacter(nextLevel.characterIds[0]);
     setSelectedRoomId(null);
+    setInteractionMode("inspect");
     setHintIndex(-1);
     setSimulation(null);
     setMapOpen(false);
@@ -338,6 +360,7 @@ export default function Home() {
       setAssignment(next);
       setSelectedCharacter(characterId);
       setSelectedRoomId(roomId);
+      setInteractionMode("assign");
       makeSound("drop");
     },
     [assignment, level.characterIds, makeSound, simulation],
@@ -349,6 +372,7 @@ export default function Home() {
     dragStart.current = { x: event.clientX, y: event.clientY };
     setSelectedCharacter(characterId);
     setSelectedRoomId(null);
+    setInteractionMode("assign");
     setDrag({ characterId, x: event.clientX, y: event.clientY, moved: false });
     makeSound("pick");
   };
@@ -386,7 +410,7 @@ export default function Home() {
     if (!result.complete || simulationPending) return;
     const events = !result.hardValid
       ? buildFailureEvents(level, result)
-      : buildNearMissEvents(level, candidate, result);
+      : buildNearMissEvents(level, result);
     setSimulationPending(true);
     await simulationAssetsReady.current;
     setAssignment(candidate);
@@ -400,13 +424,12 @@ export default function Home() {
   useEffect(() => {
     if (!simulation || simulation.finished) return;
     const isFinal = simulation.step >= simulation.events.length - 1;
-    const levelSixPace = level.number === 6 && simulation.result.passed ? 3400 : 1900;
     const timer = window.setTimeout(() => {
       setSimulation((current) => {
         if (!current) return null;
         return isFinal ? { ...current, finished: true } : { ...current, step: current.step + 1 };
       });
-    }, isFinal ? 1500 : levelSixPace);
+    }, isFinal ? 1100 : 1550);
     return () => window.clearTimeout(timer);
   }, [level.number, simulation]);
 
@@ -415,6 +438,7 @@ export default function Home() {
     setHistory([]);
     setSelectedCharacter(level.characterIds[0]);
     setSelectedRoomId(null);
+    setInteractionMode("inspect");
     setHintIndex(-1);
     setSimulation(null);
     setSimulationPending(false);
@@ -427,6 +451,16 @@ export default function Home() {
     setHistory((items) => items.slice(0, -1));
     makeSound("move");
   };
+
+  const removeCharacter = useCallback((characterId: CharacterId) => {
+    if (!assignment[characterId] || simulation) return;
+    setHistory((items) => [...items.slice(-14), assignment]);
+    setAssignment({ ...assignment, [characterId]: null });
+    setSelectedCharacter(characterId);
+    setSelectedRoomId(null);
+    setInteractionMode("assign");
+    makeSound("move");
+  }, [assignment, makeSound, simulation]);
 
   const recordCompletion = (result: HarmonyResult) => {
     const next = { ...completed, [level.number]: Math.max(completed[level.number] ?? 0, result.harmony) };
@@ -457,6 +491,7 @@ export default function Home() {
         ? level.successTitle
         : level.nearMissTitle ?? "Everyone could live here. They probably shouldn't."
     : "";
+  const currentConsequence = simulation ? resultConsequence(simulation.result) : null;
 
   return (
     <main className="game-shell reference-ui">
@@ -488,10 +523,14 @@ export default function Home() {
         <section className="board-panel" aria-label={`${level.title} apartment puzzle`}>
           <div className="objective-strip">
             <div><span>HOUSEHOLD GOAL</span><strong>{level.teaching}</strong></div>
+            <div className="room-mode-switch" role="group" aria-label="Room interaction mode">
+              <button type="button" className={interactionMode === "inspect" ? "is-active" : ""} onClick={() => setInteractionMode("inspect")}>Inspect</button>
+              <button type="button" className={interactionMode === "assign" ? "is-active" : ""} onClick={() => setInteractionMode("assign")}>Assign</button>
+            </div>
             <div className="objective-meta">
               <span>{"★".repeat(level.difficulty)}{"☆".repeat(5 - level.difficulty)}</span>
               <b>{placedCount}/{level.characterIds.length} assigned</b>
-              {level.showHarmony && allPlaced && <strong className="harmony-live"><i />{liveResult.harmony}% Harmony</strong>}
+              {level.showHarmony && <strong className="harmony-hidden">Harmony revealed after Move In</strong>}
             </div>
           </div>
 
@@ -514,7 +553,7 @@ export default function Home() {
                     className={`bedroom bedroom--slot-${index + 1} bedroom--${room.color} ${occupant ? "is-occupied" : ""} ${selectedRoomId === room.id ? "is-selected" : ""} ${isHinted ? "is-hinted" : ""} ${activeActor ? "is-acting" : ""}`}
                     onClick={() => {
                       setSelectedRoomId(room.id);
-                      if (selectedCharacter) placeCharacter(selectedCharacter, room.id);
+                      if (interactionMode === "assign" && selectedCharacter) placeCharacter(selectedCharacter, room.id);
                     }}
                     aria-label={`${room.name}. ${room.description}${occupant ? ` Occupied by ${CHARACTERS[occupant].name}.` : " Empty."}`}
                   >
@@ -588,7 +627,7 @@ export default function Home() {
               <button type="button" onClick={undo} disabled={!history.length || Boolean(simulation)}>↶ Undo</button>
               <button type="button" onClick={reset} disabled={Boolean(simulation)}>Reset</button>
             </div>
-            <p>{selectedCharacter ? `${CHARACTERS[selectedCharacter].name} is ready. Select a room.` : "Select a roommate."}</p>
+            <p>{interactionMode === "inspect" ? "Select a room to read its facts." : `${CHARACTERS[selectedCharacter].name} is ready. Select a room.`}</p>
             <button className="move-in-button" type="button" disabled={!allPlaced || Boolean(simulation) || simulationPending} onClick={() => void beginSimulation()}>
               <span>{simulationPending ? "Preparing the house" : allPlaced ? "Open the house" : `${level.characterIds.length - placedCount} still need a room`}</span>
               <strong>{simulationPending ? "OPENING…" : "MOVE IN"}</strong><i>→</i>
@@ -621,10 +660,24 @@ export default function Home() {
                 </div>
               ))}
             </div>
+            {selectedRelationships.length > 0 && (
+              <div className="relationship-list">
+                <small>HOUSE DYNAMICS</small>
+                {selectedRelationships.map((rule) => {
+                  const otherId = rule.characterIds.find((id) => id !== selectedCharacter) ?? rule.characterIds[0];
+                  return <p key={rule.id}><b>{rule.icon}</b><span><strong>{CHARACTERS[otherId].name}</strong>{rule.label}</span><em>{rule.priority === "want" ? "2 pts" : "1 pt"}</em></p>;
+                })}
+              </div>
+            )}
             <div className="sheet-note">
               <span>{PROP_MARKS[selectedCharacter]}</span>
               <p><small>MOVING WITH</small>{selectedCharacterData.prop}</p>
             </div>
+            {assignment[selectedCharacter] && (
+              <button className="remove-assignment" type="button" onClick={() => removeCharacter(selectedCharacter)}>
+                Remove {selectedCharacterData.name} from {level.house.rooms.find((item) => item.id === assignment[selectedCharacter])?.name}
+              </button>
+            )}
             <p className="inspector-tip">Needs are required. Wants and Likes improve Harmony.</p>
           </div>
 
@@ -644,18 +697,20 @@ export default function Home() {
             const roomId = assignment[characterId];
             const assignedRoom = roomId ? level.house.rooms.find((item) => item.id === roomId) : null;
             return (
-              <button
-                type="button"
-                key={characterId}
-                className={`roommate-card roommate-card--${character.color} ${selectedCharacter === characterId ? "is-selected" : ""}`}
-                onPointerDown={(event) => beginDrag(event, characterId)}
-                onClick={() => { setSelectedCharacter(characterId); setSelectedRoomId(null); }}
-                aria-label={`Select ${character.name}. ${assignedRoom ? `Assigned to ${assignedRoom.name}.` : "Not assigned."}`}
-              >
-                <CharacterPortrait characterId={characterId} />
-                <span><strong>{character.name}</strong><small>{character.role}</small><i>{assignedRoom?.name ?? "waiting with boxes"}</i></span>
-                <b>{roomId ? "✓" : "+"}</b>
-              </button>
+              <div className="dock-card-slot" key={characterId}>
+                <button
+                  type="button"
+                  className={`roommate-card roommate-card--${character.color} ${selectedCharacter === characterId ? "is-selected" : ""}`}
+                  onPointerDown={(event) => beginDrag(event, characterId)}
+                  onClick={() => { setSelectedCharacter(characterId); setSelectedRoomId(null); setInteractionMode("assign"); }}
+                  aria-label={`Select ${character.name}. ${assignedRoom ? `Assigned to ${assignedRoom.name}.` : "Not assigned."}`}
+                >
+                  <CharacterPortrait characterId={characterId} />
+                  <span><strong>{character.name}</strong><small>{character.role}</small><i>{assignedRoom?.name ?? "waiting with boxes"}</i></span>
+                  <b>{roomId ? "✓" : "+"}</b>
+                </button>
+                {roomId && <button className="dock-remove" type="button" onClick={() => removeCharacter(characterId)} aria-label={`Remove ${character.name} from ${assignedRoom?.name}`}>×</button>}
+              </div>
             );
           })}
         </div>
@@ -673,24 +728,48 @@ export default function Home() {
           <section className={`result-card ${simulation.result.passed ? "is-success" : "is-failure"}`} role="dialog" aria-modal="true" aria-labelledby="result-title">
             <span className="result-kicker">FEEDBACK AFTER SIMULATION</span>
             <span className="result-paperclip" aria-hidden="true">⌇</span>
-            {level.showHarmony && simulation.result.hardValid && <strong className="result-score">{simulation.result.harmony}% <span>HOUSEHOLD HARMONY</span></strong>}
+            {simulation.result.hardValid && <strong className="result-score">{simulation.result.harmony}% <span>HOUSEHOLD HARMONY</span></strong>}
             <h2 id="result-title">{resultTitle}</h2>
             {!simulation.result.hardValid ? (
               <p className="need-failure"><b>{simulation.result.failedNeeds[0]?.icon}</b>{CHARACTERS[simulation.result.failedNeeds[0]?.characterId ?? level.characterIds[0]].name} needs {simulation.result.failedNeeds[0]?.label.toLowerCase()}.</p>
             ) : simulation.result.harmony < level.authoredMaxHarmony ? (
               <p>{level.number === 2 ? "Every Need is met. Continue now, or rearrange for a happier home." : "Every Need is met, but this is not the best use of the rooms."}</p>
             ) : (
-              <p>{level.number === 5 ? "No 100% solution exists. This is the best possible home." : "The rooms fit the people. The tiny life of the house can begin."}</p>
+              <p>{level.authoredMaxHarmony < 100 ? "No 100% solution exists. This is the best possible home." : "The rooms fit the people. The tiny life of the house can begin."}</p>
             )}
+            {simulation.result.hardValid && (
+              <div className="result-goals">
+                <span className={simulation.result.passed ? "is-met" : ""}>✓ Move In goal · {level.successThreshold}%</span>
+                <span className={simulation.result.harmony === level.authoredMaxHarmony ? "is-met" : ""}>★ Best home · {level.authoredMaxHarmony}%</span>
+              </div>
+            )}
+            {simulation.result.hardValid && currentConsequence && <p className="result-consequence">“{currentConsequence}”</p>}
             <div className="result-list">
               {level.characterIds.map((id) => {
-                const feedback = residentFeedback(level, assignment, id, simulation.result);
+                const feedback = residentFeedback(id, simulation.result);
                 return <div key={id}><CharacterPortrait characterId={id} small /><b>{CHARACTERS[id].name}</b><i className={`result-tone--${feedback.tone}`}>{feedback.icon}</i><span>{feedback.label}</span></div>;
               })}
             </div>
+            {simulation.result.hardValid && (
+              <details className="result-breakdown" open>
+                <summary>How Wants and Likes changed the score</summary>
+                <div>
+                  {simulation.result.softResults.map(({ preference, satisfied, weight }) => (
+                    <p key={preference.id} className={satisfied ? "is-met" : "is-missed"}>
+                      <span>{satisfied ? "✓" : "×"}</span><b>{CHARACTERS[preference.characterId].name}</b><em>{preference.label}</em><strong>{satisfied ? `+${weight}` : "+0"}</strong>
+                    </p>
+                  ))}
+                  {simulation.result.relationshipResults.map(({ rule, satisfied, weight }) => (
+                    <p key={rule.id} className={satisfied ? "is-met" : "is-missed"}>
+                      <span>{satisfied ? "✓" : "×"}</span><b>{rule.characterIds.map((id) => CHARACTERS[id].name).join(" + ")}</b><em>{rule.label}</em><strong>{satisfied ? `+${weight}` : "+0"}</strong>
+                    </p>
+                  ))}
+                </div>
+              </details>
+            )}
             <div className="result-actions">
               {simulation.result.passed && <button className="primary-action" type="button" onClick={continueAfterResult}>{levelIndex === GAME_LEVELS.length - 1 ? "Chapter map" : "Continue"}</button>}
-              <button type="button" onClick={() => setSimulation(null)}>{simulation.result.passed ? "Rearrange" : "Try another arrangement"}</button>
+              <button type="button" onClick={() => setSimulation(null)}>{simulation.result.passed && simulation.result.harmony < level.authoredMaxHarmony ? "Improve for bonus" : simulation.result.passed ? "Rearrange" : "Try another arrangement"}</button>
             </div>
           </section>
         </div>

@@ -14,6 +14,7 @@ test("the authored six-level pack passes the developer solver", async () => {
       hardValidCount: report.hardValidCount,
       maxHarmony: report.maxHarmony,
       perfectCount: report.perfectCount,
+      passingCount: report.solutions.filter((solution) => solution.result.passed).length,
       warnings: report.warnings,
     }))));
   `;
@@ -24,14 +25,14 @@ test("the authored six-level pack passes the developer solver", async () => {
 
   assert.equal(reports.length, 6);
   assert.deepEqual(
-    reports.map(({ permutations, hardValidCount, maxHarmony }) => ({ permutations, hardValidCount, maxHarmony })),
+    reports.map(({ permutations, hardValidCount, maxHarmony, passingCount }) => ({ permutations, hardValidCount, maxHarmony, passingCount })),
     [
-      { permutations: 2, hardValidCount: 1, maxHarmony: 100 },
-      { permutations: 6, hardValidCount: 2, maxHarmony: 100 },
-      { permutations: 24, hardValidCount: 1, maxHarmony: 100 },
-      { permutations: 24, hardValidCount: 1, maxHarmony: 86 },
-      { permutations: 24, hardValidCount: 1, maxHarmony: 89 },
-      { permutations: 24, hardValidCount: 2, maxHarmony: 100 },
+      { permutations: 2, hardValidCount: 1, maxHarmony: 100, passingCount: 1 },
+      { permutations: 6, hardValidCount: 2, maxHarmony: 100, passingCount: 2 },
+      { permutations: 24, hardValidCount: 2, maxHarmony: 100, passingCount: 2 },
+      { permutations: 24, hardValidCount: 2, maxHarmony: 89, passingCount: 2 },
+      { permutations: 24, hardValidCount: 4, maxHarmony: 92, passingCount: 1 },
+      { permutations: 24, hardValidCount: 2, maxHarmony: 100, passingCount: 2 },
     ],
   );
   assert.deepEqual(reports.flatMap((report) => report.warnings), []);

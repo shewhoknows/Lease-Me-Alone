@@ -15,7 +15,9 @@ The vertical slice contains six levels:
 5. **Good Enough** introduces visible Household Harmony and an 85% target.
 6. **Housewarming** combines all rules in the Chapter 1 finale.
 
-The player assigns each roommate, selects **MOVE IN**, and watches the house react. A wrong answer starts a useful simulation. It has no penalty. The six levels do not yet include adjacency, relationships, movable furniture, pets, schedules, or other later campaign systems.
+The player assigns each roommate, selects **MOVE IN**, and watches the house react. A wrong answer starts a useful simulation. It has no penalty. The six levels do not yet include movable furniture, pets, schedules, or the broader later-campaign relationship systems.
+
+The current playtest revision adds separate room inspection, direct removal, shared-wall roommate conflicts, hidden pre-result Harmony, a full point breakdown, best-home bonus goals, and 5–8 second Move In sequences. Shared-wall conflicts are the first relationship mechanic; broader friendship and household systems remain future work.
 
 ## Product reference
 

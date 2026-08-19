@@ -44,6 +44,10 @@ test("keeps finished product metadata and removes starter preview code", async (
 
   assert.match(page, /buildFailureEvents/);
   assert.match(page, /solveLevel/);
+  assert.match(page, /room-mode-switch/);
+  assert.match(page, /removeCharacter/);
+  assert.match(page, /How Wants and Likes changed the score/);
+  assert.match(page, /Harmony revealed after Move In/);
   assert.match(layout, /Lease Me Alone — Six-Level Vertical Slice/);
   assert.match(layout, /\/og\.png/);
   assert.match(packageJson, /"name": "lease-me-alone"/);

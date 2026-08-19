@@ -15,6 +15,7 @@ export type RoomFeature =
 export type FeatureValue = boolean | "low" | "medium" | "strong" | "small" | "large";
 export type PreferencePriority = "need" | "want" | "like";
 export type Assignment = Record<CharacterId, string | null>;
+export type RoomPair = readonly [string, string];
 
 export type Character = {
   id: CharacterId;
@@ -58,10 +59,20 @@ export type SimulationEvent = {
   tone?: "warm" | "comic" | "tense";
 };
 
+export type RelationshipRule = {
+  id: string;
+  characterIds: readonly [CharacterId, CharacterId];
+  priority: Exclude<PreferencePriority, "need">;
+  icon: string;
+  label: string;
+  consequence: string;
+};
+
 export type House = {
   name: string;
   description: string;
   rooms: Room[];
+  sharedWalls?: RoomPair[];
 };
 
 export type GameLevel = {
@@ -76,6 +87,7 @@ export type GameLevel = {
   house: House;
   characterIds: CharacterId[];
   preferences: Preference[];
+  relationships: RelationshipRule[];
   intendedAssignment: Record<CharacterId, string>;
   successThreshold: number;
   authoredMaxHarmony: number;
@@ -96,6 +108,8 @@ export type HarmonyResult = {
   failedNeeds: FailedNeed[];
   satisfiedSoftWeight: number;
   totalSoftWeight: number;
+  softResults: Array<{ preference: Preference; satisfied: boolean; weight: number }>;
+  relationshipResults: Array<{ rule: RelationshipRule; satisfied: boolean; weight: number }>;
 };
 
 export type SolvedAssignment = {
@@ -192,6 +206,21 @@ const pref = (
 
 const intended = (value: Partial<Record<CharacterId, string>>): Record<CharacterId, string> => value as Record<CharacterId, string>;
 
+const apart = (
+  first: CharacterId,
+  second: CharacterId,
+  priority: RelationshipRule["priority"],
+  label: string,
+  consequence: string,
+): RelationshipRule => ({
+  id: `${first}-${second}-${priority}-apart`,
+  characterIds: [first, second],
+  priority,
+  icon: "↮",
+  label,
+  consequence,
+});
+
 export const GAME_LEVELS: GameLevel[] = [
   {
     id: "first-night",
@@ -214,6 +243,7 @@ export const GAME_LEVELS: GameLevel[] = [
       pref("maya", "need", "daylight", "strong", "☀", "Strong daylight"),
       pref("dev", "want", "kitchenClose", true, "◒", "Near the kitchen"),
     ],
+    relationships: [],
     intendedAssignment: intended({ maya: "sun", dev: "galley" }),
     successThreshold: 100,
     authoredMaxHarmony: 100,
@@ -255,6 +285,7 @@ export const GAME_LEVELS: GameLevel[] = [
       pref("maya", "want", "size", "large", "↔", "Larger room"),
       pref("dev", "want", "kitchenClose", true, "◒", "Near the kitchen"),
     ],
+    relationships: [],
     intendedAssignment: intended({ tara: "east", maya: "garden", dev: "hall" }),
     successThreshold: 33,
     authoredMaxHarmony: 100,
@@ -289,6 +320,7 @@ export const GAME_LEVELS: GameLevel[] = [
         room("garden", "Garden Room", "Large and bright, but close to household activity.", "green", { quiet: false, floorSpace: false, daylight: "strong", size: "large" }),
         room("galley", "Galley Room", "A small room at the kitchen door.", "rose", { quiet: false, floorSpace: false, daylight: "low", size: "small", kitchenClose: true }),
       ],
+      sharedWalls: [["studio", "garden"], ["east", "galley"]],
     },
     characterIds: ["finn", "tara", "maya", "dev"],
     preferences: [
@@ -297,12 +329,15 @@ export const GAME_LEVELS: GameLevel[] = [
       pref("tara", "need", "quiet", true, "◇", "Quiet"),
       pref("tara", "need", "floorSpace", true, "□", "Open floor space"),
       pref("tara", "want", "morningSun", true, "☼", "Morning sun"),
-      pref("maya", "need", "daylight", "strong", "☀", "Strong daylight"),
-      pref("maya", "want", "size", "large", "↔", "Larger room"),
-      pref("dev", "want", "kitchenClose", true, "◒", "Near the kitchen"),
+      pref("maya", "want", "daylight", "strong", "☀", "Strong daylight"),
+      pref("maya", "like", "size", "large", "↔", "Larger room"),
+      pref("dev", "like", "kitchenClose", true, "◒", "Near the kitchen"),
+    ],
+    relationships: [
+      apart("finn", "dev", "like", "Away from Dev's kitchen noise", "Dev tests a blender during Finn's first video call. Finn becomes a profile picture."),
     ],
     intendedAssignment: intended({ finn: "studio", tara: "east", maya: "garden", dev: "galley" }),
-    successThreshold: 100,
+    successThreshold: 35,
     authoredMaxHarmony: 100,
     showHarmony: false,
     successTitle: "SURPRISINGLY FUNCTIONAL",
@@ -324,8 +359,8 @@ export const GAME_LEVELS: GameLevel[] = [
     title: "Balcony Rights",
     chapter: "Moving Day",
     target: "5–7 min",
-    difficulty: 2,
-    teaching: "A Want or Like never overrides a Need.",
+    difficulty: 3,
+    teaching: "Balance room Needs with a shared-wall conflict.",
     house: {
       name: "The Balcony Flat",
       description: "One beautiful balcony and several firm opinions.",
@@ -335,21 +370,25 @@ export const GAME_LEVELS: GameLevel[] = [
         room("galley", "Galley Room", "A dim room beside the kitchen.", "rose", { daylight: "low", quiet: false, floorSpace: false, size: "small", kitchenClose: true }),
         room("east", "East Room", "Quiet morning light and open floor.", "sun", { daylight: "medium", quiet: true, floorSpace: true, morningSun: true, size: "medium" }),
       ],
+      sharedWalls: [["balcony", "galley"], ["loft", "east"]],
     },
     characterIds: ["maya", "kabir", "tara", "dev"],
     preferences: [
-      pref("maya", "need", "daylight", "strong", "☀", "Strong daylight"),
+      pref("maya", "want", "daylight", "strong", "☀", "Strong daylight"),
       pref("maya", "want", "balcony", true, "♧", "Balcony"),
       pref("kabir", "need", "guitarSpace", true, "♫", "Space for guitar setup"),
       pref("kabir", "like", "balcony", true, "♧", "Balcony"),
       pref("tara", "need", "quiet", true, "◇", "Quiet"),
       pref("tara", "need", "floorSpace", true, "□", "Open floor space"),
       pref("tara", "want", "morningSun", true, "☼", "Morning sun"),
-      pref("dev", "want", "kitchenClose", true, "◒", "Near the kitchen"),
+      pref("dev", "like", "kitchenClose", true, "◒", "Near the kitchen"),
+    ],
+    relationships: [
+      apart("maya", "tara", "like", "No shared wall with dawn plant care", "Maya waters plants at sunrise. Tara hears every cheerful little pour."),
     ],
     intendedAssignment: intended({ maya: "balcony", kabir: "loft", tara: "east", dev: "galley" }),
-    successThreshold: 86,
-    authoredMaxHarmony: 86,
+    successThreshold: 30,
+    authoredMaxHarmony: 89,
     showHarmony: false,
     successTitle: "COMPROMISE ACHIEVED",
     hints: [
@@ -369,7 +408,7 @@ export const GAME_LEVELS: GameLevel[] = [
     title: "Good Enough",
     chapter: "Moving Day",
     target: "6–8 min",
-    difficulty: 2,
+    difficulty: 3,
     teaching: "Reach a good Harmony score when 100% is impossible.",
     openingCopy: "Sometimes everyone getting exactly what they want isn't possible. 85% Harmony is enough to move in.",
     house: {
@@ -381,10 +420,11 @@ export const GAME_LEVELS: GameLevel[] = [
         room("galley", "Galley Room", "Small, busy, and close to the kitchen.", "rose", { daylight: "low", size: "small", quiet: false, kitchenClose: true }),
         room("box", "Box Room", "A cute blue nook with a tiny built-in desk.", "blue", { daylight: "low", size: "small", quiet: true, desk: true }),
       ],
+      sharedWalls: [["green", "galley"], ["east", "box"]],
     },
     characterIds: ["maya", "tara", "dev", "finn"],
     preferences: [
-      pref("maya", "need", "daylight", "strong", "☀", "Strong daylight"),
+      pref("maya", "want", "daylight", "strong", "☀", "Strong daylight"),
       pref("maya", "want", "size", "large", "↔", "Large room"),
       pref("tara", "need", "quiet", true, "◇", "Quiet"),
       pref("tara", "want", "morningSun", true, "☼", "Morning sun"),
@@ -393,9 +433,12 @@ export const GAME_LEVELS: GameLevel[] = [
       pref("finn", "need", "desk", true, "▤", "Proper desk"),
       pref("finn", "want", "quiet", true, "◇", "Quiet"),
     ],
+    relationships: [
+      apart("finn", "dev", "want", "No shared wall with Dev", "Dev's midnight snack becomes a three-pan event. Finn hears the entire menu."),
+    ],
     intendedAssignment: intended({ maya: "green", tara: "east", dev: "galley", finn: "box" }),
     successThreshold: 85,
-    authoredMaxHarmony: 89,
+    authoredMaxHarmony: 92,
     showHarmony: true,
     successTitle: "GREAT MATCH",
     hints: [
@@ -416,8 +459,8 @@ export const GAME_LEVELS: GameLevel[] = [
     title: "Housewarming",
     chapter: "Moving Day · Finale",
     target: "7–10 min",
-    difficulty: 3,
-    teaching: "Decide who benefits most when two rooms satisfy the same Needs.",
+    difficulty: 4,
+    teaching: "Use room facts and shared walls to find the best of two valid homes.",
     house: {
       name: "The Housewarming Flat",
       description: "A proper apartment with a central living room and four distinct bedrooms.",
@@ -427,6 +470,7 @@ export const GAME_LEVELS: GameLevel[] = [
         room("galley", "Galley Room", "A small room beside the kitchen.", "rose", { desk: false, quiet: false, floorSpace: false, daylight: "low", size: "small", kitchenClose: true, farFromCommonSpace: false }),
         room("back-office", "Back Office", "Small, bright, quiet, and far from the common rooms.", "blue", { desk: true, quiet: true, floorSpace: true, daylight: "strong", size: "small", farFromCommonSpace: true }),
       ],
+      sharedWalls: [["east-studio", "galley"], ["balcony", "back-office"]],
     },
     characterIds: ["finn", "tara", "maya", "dev"],
     preferences: [
@@ -441,8 +485,11 @@ export const GAME_LEVELS: GameLevel[] = [
       pref("maya", "like", "size", "large", "↔", "Large room"),
       pref("dev", "want", "kitchenClose", true, "◒", "Near the kitchen"),
     ],
+    relationships: [
+      apart("finn", "dev", "want", "No shared wall with Dev", "Dev hosts a tasting night beside Finn's meeting. Finn attends both by accident."),
+    ],
     intendedAssignment: intended({ finn: "back-office", tara: "east-studio", maya: "balcony", dev: "galley" }),
-    successThreshold: 100,
+    successThreshold: 50,
     authoredMaxHarmony: 100,
     showHarmony: true,
     successTitle: "HOME, FOR NOW.",
@@ -483,6 +530,8 @@ export function evaluateAssignment(level: GameLevel, assignment: Assignment): Ha
   const roomById = new Map(level.house.rooms.map((item) => [item.id, item]));
   const complete = level.characterIds.every((id) => Boolean(assignment[id]));
   const failedNeeds: FailedNeed[] = [];
+  const softResults: HarmonyResult["softResults"] = [];
+  const relationshipResults: HarmonyResult["relationshipResults"] = [];
   let satisfiedSoftWeight = 0;
   let totalSoftWeight = 0;
 
@@ -497,7 +546,24 @@ export function evaluateAssignment(level: GameLevel, assignment: Assignment): Ha
     if (weight) {
       totalSoftWeight += weight;
       if (satisfied) satisfiedSoftWeight += weight;
+      softResults.push({ preference, satisfied, weight });
     }
+  }
+
+  for (const rule of level.relationships) {
+    const [firstCharacter, secondCharacter] = rule.characterIds;
+    const firstRoom = assignment[firstCharacter];
+    const secondRoom = assignment[secondCharacter];
+    const sharesWall = Boolean(
+      firstRoom && secondRoom && level.house.sharedWalls?.some(
+        ([one, two]) => (one === firstRoom && two === secondRoom) || (one === secondRoom && two === firstRoom),
+      ),
+    );
+    const satisfied = Boolean(firstRoom && secondRoom && !sharesWall);
+    const weight = softWeight(rule.priority);
+    totalSoftWeight += weight;
+    if (satisfied) satisfiedSoftWeight += weight;
+    relationshipResults.push({ rule, satisfied, weight });
   }
 
   const harmony = totalSoftWeight === 0 ? 100 : Math.round((satisfiedSoftWeight / totalSoftWeight) * 100);
@@ -510,6 +576,8 @@ export function evaluateAssignment(level: GameLevel, assignment: Assignment): Ha
     failedNeeds,
     satisfiedSoftWeight,
     totalSoftWeight,
+    softResults,
+    relationshipResults,
   };
 }
 
@@ -568,4 +636,3 @@ export function solveLevel(level: GameLevel): LevelSolverReport {
 export function validateAllLevels(): LevelSolverReport[] {
   return GAME_LEVELS.map(solveLevel);
 }
-

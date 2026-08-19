@@ -127,6 +127,10 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
 .objective-meta { flex: none; display: flex; align-items: center; gap: 12px; }
 .objective-meta > span { color: #a5793f; font-size: 9px; letter-spacing: 1px; }
 .objective-meta > b { color: #70695e; font-size: 8px; letter-spacing: .05em; text-transform: uppercase; }
+.room-mode-switch { flex: none; display: flex; padding: 2px; border: 1px solid rgba(71,61,52,.16); border-radius: 15px; background: rgba(255,251,241,.72); }
+.room-mode-switch button { min-height: 25px; border: 0; border-radius: 13px; padding: 3px 9px; background: transparent; color: #6d685f; font-size: 7px; font-weight: 800; cursor: pointer; }
+.room-mode-switch button.is-active { background: var(--plum); color: #fffaf0; box-shadow: 0 2px 4px rgba(55,43,49,.18); }
+.harmony-hidden { max-width: 100px; color: var(--sage-dark); font: 700 6px/1.2 Georgia, serif; text-align: right; }
 .harmony-live { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; border-radius: 13px; background: #f6efe0; color: var(--sage-dark); font-size: 8px; }
 .harmony-live i { width: 10px; height: 10px; border-radius: 50% 50% 45% 50%; background: var(--sage); box-shadow: 6px 0 var(--sage), 3px 5px var(--sage); transform: scale(.65); }
 
@@ -346,10 +350,19 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
 .preference > span { color: var(--plum); font: 15px Georgia, serif; text-align: center; }
 .preference p { margin: 0; font: 9px Georgia, serif; }
 .preference em { color: #8b7763; font-size: 6px; font-style: normal; font-weight: 750; }
+.relationship-list { margin-top: 8px; padding: 7px 8px; border: 1px dashed rgba(110,77,101,.23); background: rgba(235,226,214,.55); }
+.relationship-list > small { display: block; margin-bottom: 4px; color: var(--plum); font-size: 5px; font-weight: 900; letter-spacing: .12em; }
+.relationship-list p { display: grid; grid-template-columns: 20px 1fr auto; align-items: center; gap: 5px; margin: 0; }
+.relationship-list p > b { color: var(--coral); font: 16px Georgia, serif; }
+.relationship-list p span { display: flex; flex-direction: column; color: #65645e; font: 7px/1.25 Georgia, serif; }
+.relationship-list p span strong { color: var(--ink); font-size: 8px; }
+.relationship-list p em { color: var(--sage-dark); font-size: 6px; font-style: normal; font-weight: 800; }
 .sheet-note { display: grid; grid-template-columns: 31px 1fr; align-items: center; gap: 7px; margin-top: 9px; padding: 7px 8px; border: 1px dashed rgba(80,65,73,.22); background: rgba(237,227,211,.7); }
 .sheet-note > span { width: 29px; height: 29px; display: grid; place-items: center; border-radius: 50%; background: #fffaf0; color: var(--plum); font: 18px Georgia, serif; }
 .sheet-note p { margin: 0; font: 9px Georgia, serif; text-transform: capitalize; }
 .sheet-note small { display: block; margin-bottom: 1px; color: var(--plum); font: 800 5px var(--font-geist-sans), sans-serif; letter-spacing: .1em; }
+.remove-assignment { min-height: 28px; margin-top: 7px; border: 1px solid rgba(202,103,88,.35); border-radius: 3px; background: rgba(255,248,237,.8); color: #a44f45; font-size: 7px; font-weight: 800; cursor: pointer; }
+.remove-assignment:hover { background: #fff4e9; }
 .inspector-tip { margin: auto 0 0; padding: 8px 5px 0; color: #81786e; font: italic 7px/1.35 Georgia, serif; text-align: center; }
 .selected-room-note { position: absolute; z-index: 3; left: 13px; right: 13px; bottom: 12px; display: grid; grid-template-columns: auto 1fr; gap: 1px 7px; padding: 7px 9px; border: 1px solid rgba(63,53,46,.15); border-radius: 3px; background: rgba(255,250,239,.96); box-shadow: 1px 3px 7px rgba(50,40,33,.12); }
 .selected-room-note small { grid-row: 1; color: var(--sage-dark); font-size: 5px; font-weight: 900; letter-spacing: .11em; }
@@ -362,7 +375,11 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
 .dock-intro strong { font: 700 15px Georgia, serif; }
 .dock-intro small { color: var(--ink-soft); font: italic 7px Georgia, serif; }
 .dock-cards { min-width: 0; display: flex; justify-content: center; gap: 8px; }
+.dock-card-slot { width: min(210px, 24%); min-width: 154px; position: relative; }
 .roommate-card { width: min(210px, 24%); min-width: 154px; height: 101px; position: relative; display: grid; grid-template-columns: 65px minmax(0,1fr) 22px; align-items: center; gap: 1px; padding: 4px 8px 4px 1px; overflow: hidden; border: 1px solid rgba(57,48,42,.18); border-radius: 4px; background: #fbf7ed; box-shadow: 1px 2px rgba(61,50,42,.12); text-align: left; cursor: grab; touch-action: none; transition: transform .17s ease, box-shadow .17s ease, background .17s ease; }
+.dock-card-slot .roommate-card { width: 100%; min-width: 0; }
+.dock-remove { position: absolute; z-index: 4; right: 5px; top: 5px; width: 22px; height: 22px; display: grid; place-items: center; border: 1px solid rgba(174,85,72,.3); border-radius: 50%; background: #fff8ed; color: #a24f46; font: 700 13px/1 Georgia, serif; cursor: pointer; box-shadow: 0 2px 5px rgba(54,42,34,.13); }
+.dock-remove:hover { background: #fbe1d8; }
 .roommate-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--blue); }
 .roommate-card--coral::before { background: var(--coral); }.roommate-card--ochre::before { background: var(--ochre); }.roommate-card--rose::before { background: var(--rose); }.roommate-card--blue::before { background: var(--blue); }.roommate-card--green::before { background: var(--sage); }
 .roommate-card:hover { transform: translateY(-3px) rotate(-.2deg); box-shadow: 2px 5px 9px rgba(57,46,38,.15); }
@@ -427,6 +444,10 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
 .result-score span { display: block; margin-top: 2px; font: 800 5px var(--font-geist-sans), sans-serif; letter-spacing: .12em; }
 .result-card h2 { position: relative; margin: 8px 0; font: 700 28px/1.05 Georgia, serif; }
 .result-card > p { position: relative; max-width: 330px; margin: 0 auto 11px; color: var(--ink-soft); font: 10px/1.45 Georgia, serif; }
+.result-goals { position: relative; display: flex; justify-content: center; gap: 7px; margin: 8px 0; }
+.result-goals span { padding: 5px 8px; border: 1px solid rgba(82,72,62,.14); border-radius: 12px; background: rgba(231,221,204,.55); color: #888078; font-size: 6px; font-weight: 800; }
+.result-goals span.is-met { border-color: rgba(95,125,89,.35); background: #e7efdd; color: #57704f; }
+.result-card > p.result-consequence { max-width: 430px; padding: 7px 10px; border-left: 2px solid var(--ochre); background: rgba(249,236,194,.48); color: #67594c; font-style: italic; text-align: left; }
 .need-failure { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px; border: 1px solid rgba(183,79,72,.22); background: rgba(216,121,104,.08); color: #824c48 !important; }
 .need-failure b { font: 21px Georgia, serif; }
 .result-people { position: relative; display: flex; justify-content: center; gap: 6px; margin: 5px 0 15px; }
@@ -436,6 +457,16 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
 .result-actions { position: relative; display: flex; justify-content: center; align-items: center; gap: 9px; }
 .result-actions button { min-height: 40px; border: 0; padding: 8px 11px; background: transparent; color: var(--plum); font-size: 8px; font-weight: 850; cursor: pointer; }
 .result-actions .primary-action { min-width: 115px; border-radius: 3px; background: var(--plum); color: white; box-shadow: 0 3px var(--plum-dark); }
+.result-breakdown { position: relative; margin: -4px 0 14px; border: 1px solid rgba(70,60,51,.13); border-radius: 3px; background: rgba(255,252,245,.72); text-align: left; }
+.result-breakdown summary { padding: 7px 9px; color: var(--plum); font-size: 7px; font-weight: 850; cursor: pointer; }
+.result-breakdown > div { max-height: 145px; overflow: auto; border-top: 1px solid rgba(70,60,51,.1); }
+.result-breakdown p { display: grid; grid-template-columns: 17px 76px 1fr 24px; gap: 5px; align-items: center; margin: 0; padding: 5px 7px; border-bottom: 1px solid rgba(70,60,51,.08); font-size: 7px; }
+.result-breakdown p > span { font-weight: 900; }
+.result-breakdown p > b { text-transform: uppercase; }
+.result-breakdown p > em { color: #716d66; font-style: normal; }
+.result-breakdown p > strong { text-align: right; }
+.result-breakdown p.is-met > span, .result-breakdown p.is-met > strong { color: #5f8059; }
+.result-breakdown p.is-missed > span, .result-breakdown p.is-missed > strong { color: #c2675c; }
 @keyframes modal-in { from { opacity: 0; transform: translateY(15px) scale(.9) rotate(1deg); } }
 
 .level-map { width: min(920px, 96vw); min-height: 540px; position: relative; overflow: hidden; padding: 35px 42px 32px; border: 1px solid rgba(58,48,41,.22); border-radius: 8px; background:
@@ -489,6 +520,7 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
   .character-heading .avatar { transform: scale(.86); transform-origin: center; margin: -5px -8px; }
   .roommate-dock { grid-template-columns: 90px minmax(0,1fr); padding-inline: 10px; }
   .roommate-card { min-width: 135px; grid-template-columns: 56px minmax(0,1fr) 20px; }
+  .dock-card-slot { min-width: 135px; }
   .roommate-card .avatar { transform: scale(.85); transform-origin: bottom left; margin-right: -10px; }
 }
 
@@ -499,6 +531,7 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
   .reference-ui .roommate-dock { grid-template-columns: 94px minmax(0,1fr); padding-inline: 10px; }
   .reference-ui .dock-cards { gap: 6px; }
   .reference-ui .roommate-card { min-width: 0; width: min(210px, 25%); grid-template-columns: 68px minmax(0,1fr) 22px; gap: 3px; }
+  .reference-ui .dock-card-slot { min-width: 0; width: min(210px, 25%); }
   .reference-ui .roommate-card .avatar { width: 64px; height: 88px; }
   .reference-ui .roommate-card > span:nth-of-type(2) strong { font-size: 16px; }
 }
@@ -516,6 +549,8 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
   .character-sheet blockquote { grid-column: 1; grid-row: 3; }
   .preference-key { grid-column: 2; grid-row: 1; align-self: end; }
   .preference-list { grid-column: 2; grid-row: 2 / 4; }
+  .relationship-list { grid-column: 2; grid-row: 4; }
+  .remove-assignment { grid-column: 1; grid-row: 4; }
   .sheet-note, .inspector-tip { display: none; }
   .selected-room-note { display: none; }
   .roommate-dock { grid-template-columns: 1fr; }
@@ -625,6 +660,7 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
 }
 .reference-ui .objective-strip > div:first-child span { color: #4b514d; font-size: 8px; }
 .reference-ui .objective-strip > div:first-child strong { font-family: var(--font-hand), Georgia, serif; font-size: 13px; font-weight: 400; }
+.reference-ui .room-mode-switch button.is-active { background: #e78c79; color: #473b35; }
 
 .reference-ui .house-scroll {
   padding: 9px 13px 8px;
@@ -774,6 +810,7 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
 
 .reference-ui .case-panel {
   margin: 0;
+  overflow: auto;
   border-radius: 8px;
   background: #fffaf0;
   box-shadow: none;
@@ -819,6 +856,9 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
   background: #fffaf0;
   box-shadow: none;
 }
+.reference-ui .dock-card-slot { width: min(224px, 25%); min-width: 184px; }
+.reference-ui .dock-card-slot .roommate-card { width: 100%; min-width: 0; }
+.reference-ui .dock-remove { right: 4px; top: 4px; }
 .reference-ui .roommate-card::before { display: none; }
 .reference-ui .roommate-card.is-selected { box-shadow: 0 0 0 3px #e78c79; transform: translateY(-2px); }
 .reference-ui .roommate-card > span:nth-of-type(2) {
@@ -1027,7 +1067,9 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
 
 .reference-ui .modal-backdrop { background: rgba(246,239,226,.86); backdrop-filter: blur(3px); }
 .reference-ui .result-card {
-  width: min(530px, 94vw);
+  width: min(650px, 94vw);
+  max-height: 92vh;
+  overflow: auto;
   padding: 36px 45px 28px 62px;
   border: 0;
   border-radius: 2px;
@@ -1075,6 +1117,7 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
   .reference-ui .game-layout { grid-template-columns: 1fr; }
   .reference-ui .case-panel { min-height: 320px; }
   .reference-ui .roommate-card { width: 210px; min-width: 210px; }
+  .reference-ui .dock-card-slot { width: 210px; min-width: 210px; }
 }
 
 @media (max-width: 700px) {
@@ -1083,6 +1126,9 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
   .reference-ui .house-scroll { place-items: initial; }
   .reference-ui .brand-lockup { display: none; }
   .reference-ui .roommate-card { width: 196px; min-width: 196px; grid-template-columns: 76px minmax(0,1fr) 22px; gap: 3px; }
+  .reference-ui .dock-card-slot { width: 196px; min-width: 196px; }
+  .room-mode-switch { order: 3; }
+  .harmony-hidden { display: none; }
   .reference-ui .simulation-layer { position: fixed; z-index: 240; inset: 0; height: 100svh; max-height: 100svh; padding: 10px 10px calc(48px + env(safe-area-inset-bottom)); grid-template-rows: minmax(0, 1fr) auto; gap: 8px; }
   .reference-ui .simulation-scene { border-radius: 8px; background: #f5eddf; }
   .reference-ui .simulation-caption { width: 100%; min-height: 82px; }

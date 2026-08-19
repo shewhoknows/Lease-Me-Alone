@@ -8,13 +8,15 @@ For each level, the player:
 
 1. inspects the house and its room features;
 2. opens roommate cards to read preferences;
-3. drags every roommate into one bedroom;
+3. switches to Assign mode and taps or drags every roommate into one bedroom;
 4. selects **MOVE IN**;
 5. watches a short household simulation;
 6. sees success or a clear problem;
 7. rearranges the roommates and tries again.
 
 There is no penalty for a bad test. **MOVE IN** becomes available when all roommates have rooms. It does not require a valid or good assignment.
+
+Room selection starts in **Inspect** mode. It must show room facts without moving anybody. Selecting a roommate switches to **Assign** mode. Every assigned roommate has a direct remove control.
 
 When a Need fails, start the simulation as usual. Show the related conflict and the character reaction. Pause the simulation, show the failed Need, and return to arrangement mode. A bad assignment must be useful and entertaining.
 
@@ -34,9 +36,11 @@ For a hard-valid assignment:
 Harmony = round(satisfied soft-preference weight / total soft-preference weight * 100)
 ```
 
-Calculate Harmony internally from Level 1. Do not show its number before Level 5. Needs always take priority over Wants and Likes.
+Calculate Harmony internally from Level 1. Do not show its number before **MOVE IN**. Needs always take priority over Wants and Likes.
 
-Levels 1 through 4 can teach quality without a number. Level 2 can continue after its 33% hard-valid near-miss, but the game should invite the player to improve it. Level 4 must accept 86% as the best result. Level 5 introduces the visible **HOUSEHOLD HARMONY** value and an explicit threshold.
+The result reveals Harmony and shows the point effect of every Want and Like. A basic Move In result can pass below the best possible score. The result must then offer a **Best home** bonus goal.
+
+From Level 3, shared-wall rules add soft conflicts between roommates. A Want is worth 2 points and a Like is worth 1 point, like room preferences. The rule passes when the two named roommates do not share one of the level's authored room-wall pairs.
 
 Do not use stars, coins, XP, or a standard mobile progress bar for Harmony. Use a small, illustrated indicator that fits the watercolor art.
 
@@ -103,8 +107,9 @@ Rooms:
 Level preferences:
 
 - Tara: Need quiet; Want morning sun.
-- Maya: Need strong daylight; Want larger room.
-- Dev: Want kitchen proximity.
+- Maya: Want strong daylight; Like larger room.
+- Dev: Like kitchen proximity.
+- Finn and Dev: Like separate rooms with no shared wall.
 
 Intended assignment: `Tara → R1`, `Maya → R2`, `Dev → R3`.
 
@@ -153,15 +158,17 @@ Validator expectation:
 
 ```text
 Assignments: 24
-Hard-valid: 1
+Hard-valid: 2
 Best Harmony: 100
+Second hard-valid Harmony: 38
+Required Harmony: 35
 ```
 
 ### Level 4: Balcony Rights
 
-- Target: 5–7 minutes. Difficulty: 2/5. Four roommates and four bedrooms.
-- Teach that Wants and Likes do not override Needs.
-- Keep numerical Harmony hidden.
+- Target: 5–7 minutes. Difficulty: 3/5. Four roommates and four bedrooms.
+- Teach Needs, soft room preferences, and a shared-wall conflict.
+- Keep numerical Harmony hidden until Move In.
 
 Rooms:
 
@@ -174,28 +181,31 @@ Rooms:
 
 Level preferences:
 
-- Maya: Need strong daylight; Want balcony.
+- Maya: Want strong daylight; Want balcony.
 - Kabir: Need guitar setup space; Like balcony.
 - Tara: Need quiet; Need floor space; Want morning sun.
-- Dev: Want kitchen proximity.
+- Dev: Like kitchen proximity.
+- Maya and Tara: Like separate rooms with no shared wall.
 
 Intended assignment: `Maya → R1`, `Kabir → R2`, `Tara → R4`, `Dev → R3`.
 
-Best Harmony: **86%**. The missing 14% is Kabir's balcony Like. This is intentional. On success, Kabir accepts the Loft and Maya uses the balcony. End with **COMPROMISE ACHIEVED**.
+Best Harmony: **89%**. Kabir still gives up his balcony Like. This is intentional. On success, Kabir accepts the Loft and Maya uses the balcony. End with **COMPROMISE ACHIEVED**.
 
 Validator expectation:
 
 ```text
 Assignments: 24
-Hard-valid: 1
-Best Harmony: 86
+Hard-valid: 2
+Best Harmony: 89
+Second hard-valid Harmony: 33
+Required Harmony: 30
 Unsatisfied at best: Kabir balcony Like
 ```
 
 ### Level 5: Good Enough
 
-- Target: 6–8 minutes. Difficulty: 2/5. Four roommates and four bedrooms.
-- Introduce visible **HOUSEHOLD HARMONY**.
+- Target: 6–8 minutes. Difficulty: 3/5. Four roommates and four bedrooms.
+- Introduce an explicit Harmony target and several hard-valid compromises.
 - Explain that no 100% assignment exists and that **85% Harmony is enough to move in.**
 
 Rooms:
@@ -209,14 +219,15 @@ Rooms:
 
 Level preferences:
 
-- Maya: Need strong daylight; Want a large room.
+- Maya: Want strong daylight; Want a large room.
 - Tara: Need quiet; Want morning sun.
 - Dev: Want kitchen proximity; Like a large room.
 - Finn: Need desk; Want quiet.
+- Finn and Dev: Want separate rooms with no shared wall.
 
 Intended assignment: `Maya → R1`, `Tara → R2`, `Dev → R3`, `Finn → R4`.
 
-Maximum Harmony: **89%**. Required Harmony: **85%**. Present the result as **89% — GREAT MATCH**. Dev accepts the small room because it is near the kitchen.
+Maximum Harmony: **92%**. Required Harmony: **85%**. Present the result as **92% — GREAT MATCH**. Dev accepts the small room because it is near the kitchen.
 
 If all Needs pass but Harmony is below 85%, still run **MOVE IN**. Then explain that the house is possible but is not a good match, and offer another arrangement.
 
@@ -224,17 +235,17 @@ Validator expectation:
 
 ```text
 Assignments: 24
-Hard-valid: 1
-Maximum Harmony: 89
+Hard-valid: 4
+Maximum Harmony: 92
 Required Harmony: 85
 Best: Maya R1 / Tara R2 / Dev R3 / Finn R4
-assert maxHarmony == 89
+assert maxHarmony == 92
 assert noArrangementCanReach(100)
 ```
 
 ### Level 6: Housewarming
 
-- Chapter 1 finale. Target: 7–10 minutes. Difficulty: 3/5.
+- Chapter 1 finale. Target: 7–10 minutes. Difficulty: 4/5.
 - Four roommates and four bedrooms.
 - Add no mechanic. Test all prior reasoning.
 - This apartment is the largest and strongest environment in the slice. Put the living room in the center and the bedrooms around it.
@@ -254,14 +265,15 @@ Level preferences:
 - Tara: Need quiet; Need floor space; Want morning sun.
 - Maya: Need strong daylight; Want balcony; Like a large room.
 - Dev: Want kitchen proximity.
+- Finn and Dev: Want separate rooms with no shared wall.
 
 Intended assignment: `Finn → R4`, `Tara → R1`, `Maya → R2`, `Dev → R3`.
 
 Harmony: **100%**.
 
-The only other hard-valid assignment is `Finn → R1`, `Tara → R4`, `Maya → R2`, `Dev → R3`. Its Harmony is **60%** because Finn is beside the common space and Tara has no morning sun.
+The only other hard-valid assignment is `Finn → R1`, `Tara → R4`, `Maya → R2`, `Dev → R3`. Its Harmony is **50%** because Finn is beside the common space, shares a wall with Dev, and Tara has no morning sun. It reaches the basic 50% Move In goal, but not the best-home bonus.
 
-The full success simulation lasts about 25–30 seconds. Do not interrupt it with dialogue boxes. Show each room benefit, bring everyone to the table, and end with **HOME, FOR NOW.** and **Chapter 1 Complete**. The 60% simulation must show common-area noise affecting Finn and dark early morning conditions affecting Tara.
+The full success simulation lasts about 5–8 seconds. Show no more than four events. Keep Skip available. End with **HOME, FOR NOW.** and **Chapter 1 Complete**. The 50% simulation must show the most important missed preference or shared-wall conflict.
 
 Validator expectation:
 
@@ -270,11 +282,11 @@ Assignments: 24
 Hard-valid: 2
 Perfect assignments: 1
 Best: Finn R4 / Tara R1 / Maya R2 / Dev R3, Harmony 100
-Second: Finn R1 / Tara R4 / Maya R2 / Dev R3, Harmony 60
+Second: Finn R1 / Tara R4 / Maya R2 / Dev R3, Harmony 50
 assert hardValidAssignments.count == 2
 assert perfectAssignments.count == 1
 assert maxHarmony == 100
-assert secondBestHardValidHarmony == 60
+assert secondBestHardValidHarmony == 50
 ```
 
 ## Hint rules
@@ -374,7 +386,7 @@ Do not start the full 45-level campaign until all statements below are true:
 - Watercolor rooms stay clear at iPad size.
 - Bad assignments are entertaining to test.
 - **MOVE IN** feels like a reward.
-- Level 5 makes 89% feel successful.
+- Level 5 makes 92% feel successful without offering a perfect answer.
 - Level 6 needs real thought but is not frustrating.
 - The five characters have recognizable personalities.
 - A replay is fast.
