@@ -76,7 +76,7 @@ test("packages every level apartment and the preloaded Move In art", async () =>
 
   const layout = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8");
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
-  assert.match(page, /"early-bird": "\/art\/lease-me-alone-topdown-3\.png"/);
+  assert.match(page, /"early-bird": publicAsset\("\/art\/lease-me-alone-topdown-3\.png"\)/);
   assert.match(layout, /rel="preload"[\s\S]*lease-me-alone-cutaway\.avif/);
   assert.match(page, /SIMULATION_HOUSE_ART/);
   assert.match(page, /simulationAssetsReady\.current = Promise\.all/);

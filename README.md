@@ -4,7 +4,7 @@ This repository contains the browser vertical slice for **Lease Me Alone**, a co
 
 ## Play
 
-[Play the current private build](https://flatmates-night-owl.prateekranka.chatgpt.site)
+[Play the game on GitHub Pages](https://shewhoknows.github.io/Lease-Me-Alone/)
 
 The vertical slice contains six levels:
 
@@ -38,6 +38,7 @@ Open the local address printed by the development server.
 
 ```bash
 npm run build
+npm run build:pages
 npm test
 npm run lint
 ```

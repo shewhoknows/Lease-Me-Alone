@@ -1,6 +1,9 @@
 "use client";
 
+export const dynamic = "force-static";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import Image from "next/image";
 import {
   CHARACTERS,
@@ -61,17 +64,20 @@ const DEFAULT_DEBUG: DebugFlags = {
   solutions: false,
 };
 
+const PUBLIC_BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+const publicAsset = (path: string) => `${PUBLIC_BASE_PATH}${path}`;
+
 const HOUSE_ART_BY_LEVEL: Record<string, string> = {
-  "first-night": "/art/lease-me-alone-topdown-2.png",
-  "early-bird": "/art/lease-me-alone-topdown-3.png",
-  "room-to-work": "/art/levels/level-03-room-to-work.png",
-  "balcony-rights": "/art/levels/level-04-balcony-rights.png",
-  "good-enough": "/art/levels/level-05-good-enough.png",
-  housewarming: "/art/levels/level-06-housewarming.png",
+  "first-night": publicAsset("/art/lease-me-alone-topdown-2.png"),
+  "early-bird": publicAsset("/art/lease-me-alone-topdown-3.png"),
+  "room-to-work": publicAsset("/art/levels/level-03-room-to-work.png"),
+  "balcony-rights": publicAsset("/art/levels/level-04-balcony-rights.png"),
+  "good-enough": publicAsset("/art/levels/level-05-good-enough.png"),
+  housewarming: publicAsset("/art/levels/level-06-housewarming.png"),
 };
 
-const SIMULATION_HOUSE_ART = "/art/lease-me-alone-cutaway.avif";
-const SIMULATION_PORTRAIT_ART = Object.keys(CHARACTERS).map((characterId) => `/art/characters/${characterId}.png`);
+const SIMULATION_HOUSE_ART = publicAsset("/art/lease-me-alone-cutaway.avif");
+const SIMULATION_PORTRAIT_ART = Object.keys(CHARACTERS).map((characterId) => publicAsset(`/art/characters/${characterId}.png`));
 
 function preloadImage(src: string) {
   return new Promise<void>((resolve) => {
@@ -95,8 +101,12 @@ function preloadImage(src: string) {
 }
 
 function CharacterPortrait({ characterId, small = false }: { characterId: CharacterId; small?: boolean }) {
+  const portraitStyle = {
+    "--portrait-image": `url("${publicAsset(`/art/characters/${characterId}.png`)}")`,
+  } as CSSProperties;
+
   return (
-    <span className={`avatar avatar--${characterId} ${small ? "avatar--small" : ""}`} aria-hidden="true">
+    <span className={`avatar avatar--${characterId} ${small ? "avatar--small" : ""}`} style={portraitStyle} aria-hidden="true">
       <span className="avatar__art" />
     </span>
   );
@@ -439,7 +449,7 @@ export default function Home() {
   };
 
   const selectedCharacterData = CHARACTERS[selectedCharacter];
-  const houseArt = HOUSE_ART_BY_LEVEL[level.id] ?? "/art/lease-me-alone-topdown.png";
+  const houseArt = HOUSE_ART_BY_LEVEL[level.id] ?? publicAsset("/art/lease-me-alone-topdown.png");
   const resultTitle = simulation
     ? !simulation.result.hardValid
       ? `${CHARACTERS[simulation.result.failedNeeds[0]?.characterId ?? level.characterIds[0]].name} cannot settle here.`

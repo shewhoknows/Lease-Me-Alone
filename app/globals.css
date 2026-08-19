@@ -867,11 +867,6 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow:
   border-radius: 5px;
 }
 .reference-ui .avatar__art { position: absolute; inset: 0; }
-.reference-ui .avatar--maya { --portrait-image: url('/art/characters/maya.png'); }
-.reference-ui .avatar--dev { --portrait-image: url('/art/characters/dev.png'); }
-.reference-ui .avatar--tara { --portrait-image: url('/art/characters/tara.png'); }
-.reference-ui .avatar--finn { --portrait-image: url('/art/characters/finn.png'); }
-.reference-ui .avatar--kabir { --portrait-image: url('/art/characters/kabir.png'); }
 .reference-ui .avatar--small { width: 51px; height: 62px; margin: 0; transform: none; }
 
 .reference-ui .simulation-layer {
