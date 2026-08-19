@@ -79,6 +79,7 @@ const HOUSE_ART_BY_LEVEL: Record<string, string> = {
 
 const SIMULATION_HOUSE_ART = publicAsset("/art/lease-me-alone-cutaway.avif");
 const SIMULATION_PORTRAIT_ART = Object.keys(CHARACTERS).map((characterId) => publicAsset(`/art/characters/${characterId}.png`));
+const CHAPTER_MAP_ART = publicAsset("/art/maps/chapter-01-moving-day.avif");
 
 function preloadImage(src: string) {
   return new Promise<void>((resolve) => {
@@ -262,6 +263,7 @@ export default function Home() {
   const [simulation, setSimulation] = useState<SimulationState | null>(null);
   const [simulationPending, setSimulationPending] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
+  const [mapHelpOpen, setMapHelpOpen] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [completed, setCompleted] = useState<Record<number, number>>({});
   const [debugOpen, setDebugOpen] = useState(false);
@@ -302,7 +304,20 @@ export default function Home() {
     simulationAssetsReady.current = Promise.all(
       [SIMULATION_HOUSE_ART, ...SIMULATION_PORTRAIT_ART].map(preloadImage),
     ).then(() => undefined);
+    void preloadImage(CHAPTER_MAP_ART);
   }, []);
+
+  useEffect(() => {
+    if (!mapOpen) return;
+    const closeMap = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMapOpen(false);
+        setMapHelpOpen(false);
+      }
+    };
+    window.addEventListener("keydown", closeMap);
+    return () => window.removeEventListener("keydown", closeMap);
+  }, [mapOpen]);
 
   const makeSound = useCallback(
     (kind: "pick" | "drop" | "move") => {
@@ -336,6 +351,7 @@ export default function Home() {
     setHintIndex(-1);
     setSimulation(null);
     setMapOpen(false);
+    setMapHelpOpen(false);
     setDebugOpen(false);
     setDebugFlags(DEFAULT_DEBUG);
   }, []);
@@ -776,23 +792,76 @@ export default function Home() {
       )}
 
       {mapOpen && (
-        <div className="modal-backdrop">
-          <section className="level-map" role="dialog" aria-modal="true" aria-labelledby="map-title">
-            <button className="map-close" type="button" onClick={() => setMapOpen(false)} aria-label="Close level map">×</button>
-            <span>CHAPTER 1 · MOVING DAY</span>
-            <h2 id="map-title">Six small houses. Five large personalities.</h2>
-            <p>Complete each move to open the next front door.</p>
-            <div className="map-path"><i /><i /><i /></div>
-            <div className="map-levels">
+        <div className="chapter-map-shell">
+          <section className="chapter-map" role="dialog" aria-modal="true" aria-labelledby="map-title">
+            <Image className="chapter-map__art" src={CHAPTER_MAP_ART} alt="" fill priority sizes="100vw" />
+            <button
+              className="chapter-map__back"
+              type="button"
+              onClick={() => {
+                setMapOpen(false);
+                setMapHelpOpen(false);
+              }}
+              aria-label="Return to the current level"
+            >
+              ‹
+            </button>
+
+            <header className="chapter-map__heading">
+              <span>CHAPTER 1 · MOVING DAY</span>
+              <h2 id="map-title">Six small houses. Five large personalities.</h2>
+              <p>Complete each move to open the next front door.</p>
+            </header>
+
+            <div className="chapter-map__actions">
+              <button type="button" onClick={() => setMapHelpOpen((open) => !open)} aria-expanded={mapHelpOpen}>
+                <span aria-hidden="true">☀</span> Hint
+              </button>
+              <button
+                className="chapter-map__sound"
+                type="button"
+                onClick={() => setSoundOn((enabled) => !enabled)}
+                aria-label={soundOn ? "Mute sound" : "Turn sound on"}
+                aria-pressed={soundOn}
+              >
+                {soundOn ? "♪" : "×"}
+              </button>
+            </div>
+
+            {mapHelpOpen && (
+              <aside className="chapter-map__help">
+                Complete one house to unlock the next. A gold star marks your best completed move.
+              </aside>
+            )}
+
+            <div className="chapter-map__levels" aria-label="Moving Day levels">
               {GAME_LEVELS.map((item, index) => {
                 const unlocked = item.number <= maxUnlocked;
+                const bestScore = completed[item.number];
                 return (
-                  <button type="button" key={item.id} disabled={!unlocked} className={`${item.number === level.number ? "is-current" : ""} ${completed[item.number] !== undefined ? "is-complete" : ""}`} onClick={() => changeLevel(index)}>
-                    <span className={`map-house map-house--${(index % 3) + 1}`}><i /><b>{unlocked ? item.number : "·"}</b></span>
-                    <strong>{item.title}</strong><small>{completed[item.number] !== undefined ? `${completed[item.number]}% best` : unlocked ? item.target : "Locked"}</small>
+                  <button
+                    type="button"
+                    key={item.id}
+                    disabled={!unlocked}
+                    className={`chapter-level ${item.number === level.number ? "is-current" : ""} ${bestScore !== undefined ? "is-complete" : ""}`}
+                    onClick={() => changeLevel(index)}
+                    aria-current={item.number === level.number ? "page" : undefined}
+                    aria-label={`${item.title}. ${bestScore !== undefined ? `${bestScore}% best score` : unlocked ? "Ready to play" : "Locked"}`}
+                  >
+                    <span className="chapter-level__frame" aria-hidden="true" />
+                    <span className="chapter-level__number" aria-hidden="true">{unlocked ? item.number : "·"}</span>
+                    <span className="chapter-level__label">
+                      <strong>{item.title}</strong>
+                      <small>{bestScore !== undefined ? `${bestScore}% best` : unlocked ? "Ready to play" : "Not completed"}</small>
+                    </span>
                   </button>
                 );
               })}
+            </div>
+
+            <div className="chapter-map__legend" aria-label="Map key">
+              <span><b aria-hidden="true">★</b> Best score</span>
+              <span><i aria-hidden="true" /> Not completed</span>
             </div>
           </section>
         </div>

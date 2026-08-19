@@ -71,6 +71,7 @@ test("packages every level apartment and the preloaded Move In art", async () =>
     "levels/level-05-good-enough.png",
     "levels/level-06-housewarming.png",
     "lease-me-alone-cutaway.avif",
+    "maps/chapter-01-moving-day.avif",
   ];
 
   for (const artFile of artFiles) {
@@ -83,6 +84,7 @@ test("packages every level apartment and the preloaded Move In art", async () =>
   assert.match(page, /"early-bird": publicAsset\("\/art\/lease-me-alone-topdown-3\.png"\)/);
   assert.match(layout, /rel="preload"[\s\S]*lease-me-alone-cutaway\.avif/);
   assert.match(page, /SIMULATION_HOUSE_ART/);
+  assert.match(page, /CHAPTER_MAP_ART/);
   assert.match(page, /simulationAssetsReady\.current = Promise\.all/);
   assert.match(page, /await simulationAssetsReady\.current/);
   assert.match(page, /\.decode\?\.\(\)/);
